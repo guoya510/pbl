@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Auth from './views/Auth';
 import Home from './views/Home';
+import ProductFormPage from './views/ProductFormPage';
 import './App.css';
 
 function App() {
@@ -39,13 +40,18 @@ function App() {
           <div className="navbar-links">
             {user ? (
               <>
+                <a href="/">首页</a>
+                <a href="/product/form">发布商品</a>
                 <span className="user-info">欢迎, {user.username}</span>
                 <button className="logout-button" onClick={handleLogout}>
                   退出登录
                 </button>
               </>
             ) : (
-              <a href="/auth">登录/注册</a>
+              <>
+                <a href="/">首页</a>
+                <a href="/auth">登录/注册</a>
+              </>
             )}
           </div>
         </nav>
@@ -59,6 +65,10 @@ function App() {
             <Route 
               path="/auth" 
               element={user ? <Navigate to="/" /> : <Auth onAuthSuccess={handleAuthSuccess} />} 
+            />
+            <Route 
+              path="/product/form" 
+              element={user ? <ProductFormPage /> : <Navigate to="/auth" />} 
             />
           </Routes>
         </div>
