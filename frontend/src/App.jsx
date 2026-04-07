@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Auth from './views/Auth';
 import Home from './views/Home';
 import ProductFormPage from './views/ProductFormPage';
+import ProductDetail from './views/ProductDetail';
 import './App.css';
 
 function App() {
@@ -69,6 +70,10 @@ function App() {
             <Route 
               path="/product/form" 
               element={user ? <ProductFormPage /> : <Navigate to="/auth" />} 
+            />
+            <Route 
+              path="/product/:id" 
+              element={<ProductDetail />} 
             />
           </Routes>
         </div>

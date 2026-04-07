@@ -35,7 +35,7 @@ const Home = () => {
       <h1>校园二手物品</h1>
       <div className="products-grid">
         {products.map((product) => (
-          <div key={product._id} className="product-card">
+          <a key={product._id} href={`/product/${product._id}`} className="product-card">
             <div className="product-images">
               {product.images && product.images.length > 0 ? (
                 <img src={product.images[0]} alt={product.name} />
@@ -51,7 +51,7 @@ const Home = () => {
                 <span>卖家: {product.seller?.username || '未知'}</span>
               </div>
             </div>
-          </div>
+          </a>
         ))}
       </div>
     </div>
