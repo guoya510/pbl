@@ -37,6 +37,14 @@ const UserSchema = new mongoose.Schema({
     type: String,
     default: '良好'
   },
+  following: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
+  followers: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
   createdAt: {
     type: Date,
     default: Date.now
