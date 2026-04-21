@@ -4,6 +4,7 @@ import Auth from './views/Auth';
 import Home from './views/Home';
 import ProductFormPage from './views/ProductFormPage';
 import ProductDetail from './views/ProductDetail';
+import Favorites from './views/Favorites';
 import './App.css';
 
 function App() {
@@ -43,6 +44,7 @@ function App() {
               <>
                 <a href="/">首页</a>
                 <a href="/product/form">发布商品</a>
+                <a href="/favorites">我的收藏</a>
                 <span className="user-info">欢迎, {user.username}</span>
                 <button className="logout-button" onClick={handleLogout}>
                   退出登录
@@ -74,6 +76,10 @@ function App() {
             <Route 
               path="/product/:id" 
               element={<ProductDetail />} 
+            />
+            <Route 
+              path="/favorites" 
+              element={user ? <Favorites /> : <Navigate to="/auth" />} 
             />
           </Routes>
         </div>

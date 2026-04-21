@@ -27,6 +27,7 @@ app.use('/api/users', require('./routes/users'));
 app.use('/api/products', require('./routes/products'));
 app.use('/api/transactions', require('./routes/transactions'));
 app.use('/api/messages', require('./routes/messages'));
+app.use('/api/favorites', require('./routes/favorites'));
 
 // 健康检查
 app.get('/health', (req, res) => {

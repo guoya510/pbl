@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Navigate } from 'react-router-dom';
-import { productApi } from '../utils/api';
+import { productApi, favoriteApi } from '../utils/api';
 
 const ProductDetail = () => {
   const { id } = useParams();
@@ -8,6 +8,8 @@ const ProductDetail = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [user, setUser] = useState(null);
+  const [isFavorited, setIsFavorited] = useState(false);
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
@@ -21,6 +23,45 @@ const ProductDetail = () => {
       fetchProductDetail();
     }
   }, [id]);
+
+  useEffect(() => {
+    if (user && id) {
+      checkFavoriteStatus();
+    }
+  }, [user, id]);
+
+  const checkFavoriteStatus = async () => {
+    try {
+      const response = await favoriteApi.checkFavorite(id);
+      setIsFavorited(response.isFavorited);
+    } catch (err) {
+      console.error('检查收藏状态失败:', err);
+    }
+  };
+
+  const handleFavorite = async () => {
+    if (!user) {
+      alert('请先登录');
+      return;
+    }
+
+    try {
+      setFavoriteLoading(true);
+      if (isFavorited) {
+        await favoriteApi.removeFavorite(id);
+        setIsFavorited(false);
+        alert('取消收藏成功');
+      } else {
+        await favoriteApi.addFavorite(id);
+        setIsFavorited(true);
+        alert('收藏成功');
+      }
+    } catch (err) {
+      alert('操作失败，请重试');
+    } finally {
+      setFavoriteLoading(false);
+    }
+  };
 
   const fetchProductDetail = async () => {
     try {
@@ -109,16 +150,25 @@ const ProductDetail = () => {
             </div>
           </div>
           
-          {user && user._id === product.seller?._id && (
-            <div className="action-buttons">
-              <a href={`/product/form?id=${product._id}`} className="edit-button">
-                编辑商品
-              </a>
-              <button className="delete-button" onClick={handleDelete}>
-                删除商品
-              </button>
-            </div>
-          )}
+          <div className="action-buttons">
+            <button 
+              className={`favorite-button ${isFavorited ? 'favorited' : ''}`}
+              onClick={handleFavorite}
+              disabled={favoriteLoading}
+            >
+              {isFavorited ? '取消收藏' : '收藏'}
+            </button>
+            {user && user._id === product.seller?._id && (
+              <>
+                <a href={`/product/form?id=${product._id}`} className="edit-button">
+                  编辑商品
+                </a>
+                <button className="delete-button" onClick={handleDelete}>
+                  删除商品
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </div>
       

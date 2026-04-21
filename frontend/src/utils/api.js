@@ -70,6 +70,18 @@ export const productApi = {
   getUserProducts: (userId) => api.get(`/products/user/${userId}`)
 };
 
+// 收藏相关API
+export const favoriteApi = {
+  // 收藏商品
+  addFavorite: (productId) => api.post('/favorites', { productId }),
+  // 取消收藏
+  removeFavorite: (productId) => api.delete(`/favorites/${productId}`),
+  // 获取用户的收藏列表
+  getUserFavorites: () => api.get('/favorites/user'),
+  // 检查商品是否已收藏
+  checkFavorite: (productId) => api.get(`/favorites/check/${productId}`)
+};
+
 // 交易相关API
 export const transactionApi = {
   // 创建交易

@@ -6,17 +6,38 @@ const jwt = require('jsonwebtoken');
 // 获取商品列表
 router.get('/', async (req, res) => {
   try {
-    const { category, location, page = 1, limit = 10 } = req.query;
+    const { keyword, category, location, sort = 'createdAt', page = 1, limit = 10 } = req.query;
     const query = { status: '在售' };
     
+    // 关键词搜索
+    if (keyword) {
+      query.$or = [
+        { name: { $regex: keyword, $options: 'i' } },
+        { description: { $regex: keyword, $options: 'i' } }
+      ];
+    }
+    
+    // 分类筛选
     if (category) query.category = category;
+    
+    // 地点筛选
     if (location) query.location = location;
+    
+    // 排序逻辑
+    let sortOptions = { createdAt: -1 };
+    if (sort === 'price') {
+      sortOptions = { price: 1 };
+    } else if (sort === '-price') {
+      sortOptions = { price: -1 };
+    } else if (sort === 'createdAt') {
+      sortOptions = { createdAt: -1 };
+    }
     
     const products = await Product.find(query)
       .populate('seller', 'username avatar')
       .skip((page - 1) * limit)
       .limit(parseInt(limit))
-      .sort({ createdAt: -1 });
+      .sort(sortOptions);
     
     const total = await Product.countDocuments(query);
     
