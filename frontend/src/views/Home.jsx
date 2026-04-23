@@ -41,12 +41,40 @@ const Home = () => {
     }));
   };
 
+  const filteredProducts = products;
+
   if (loading) {
-    return <div className="loading">加载中...</div>;
+    return (
+      <div className="home-container">
+        <h1>校园二手物品</h1>
+        <div className="products-grid">
+          {[...Array(6)].map((_, index) => (
+            <div key={index} className="product-card skeleton">
+              <div className="product-images skeleton-image"></div>
+              <div className="product-info">
+                <div className="skeleton-title"></div>
+                <div className="skeleton-price"></div>
+                <div className="skeleton-location"></div>
+                <div className="skeleton-seller"></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   }
 
   if (error) {
-    return <div className="error">{error}</div>;
+    return (
+      <div className="home-container">
+        <h1>校园二手物品</h1>
+        <div className="error-container">
+          <div className="error-icon">⚠️</div>
+          <div className="error-message">{error}</div>
+          <button className="retry-button" onClick={fetchProducts}>重试</button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -54,6 +82,7 @@ const Home = () => {
       <h1>校园二手物品</h1>
       
       <div className="search-filter-container">
+
         <form onSubmit={handleSearch} className="search-form">
           <div className="search-inputs">
             <div className="form-group">
@@ -110,28 +139,50 @@ const Home = () => {
             <button type="submit" className="search-button">搜索</button>
           </div>
         </form>
+
+
+
       </div>
 
       <div className="products-grid">
-        {products.map((product) => (
-          <a key={product._id} href={`/product/${product._id}`} className="product-card">
-            <div className="product-images">
-              {product.images && product.images.length > 0 ? (
-                <img src={product.images[0]} alt={product.name} />
-              ) : (
-                <div className="no-image">暂无图片</div>
-              )}
-            </div>
-            <div className="product-info">
-              <h3 className="product-name">{product.name}</h3>
-              <p className="product-price">¥{product.price}</p>
-              <p className="product-location">{product.location}</p>
-              <div className="product-seller">
-                <span>卖家: {product.seller?.username || '未知'}</span>
+        {filteredProducts.length > 0 ? (
+          filteredProducts.map((product) => (
+            <a key={product._id} href={`/product/${product._id}`} className="product-card">
+              <div className="product-images">
+                {product.images && product.images.length > 0 ? (
+                  <img 
+                    src={product.images[0]} 
+                    alt={product.name}
+                    loading="lazy"
+                    className="product-image"
+                  />
+                ) : (
+                  <div className="no-image">
+                    <div className="no-image-icon">📷</div>
+                    <span>暂无图片</span>
+                  </div>
+                )}
               </div>
-            </div>
-          </a>
-        ))}
+              <div className="product-info">
+                <h3 className="product-name">{product.name}</h3>
+                <p className="product-price">¥{product.price}</p>
+                <div className="product-meta">
+                  <span className="product-location">📍 {product.location}</span>
+                  <span className="product-category">{product.category || '其他'}</span>
+                </div>
+                <div className="product-seller">
+                  <span>卖家: {product.seller?.username || '未知'}</span>
+                </div>
+              </div>
+            </a>
+          ))
+        ) : (
+          <div className="no-products">
+            <div className="no-products-icon">🔍</div>
+            <h3>未找到商品</h3>
+            <p>尝试调整搜索条件或查看其他分类</p>
+          </div>
+        )}
       </div>
     </div>
   );

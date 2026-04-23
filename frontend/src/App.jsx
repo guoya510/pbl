@@ -5,6 +5,7 @@ import Home from './views/Home';
 import ProductFormPage from './views/ProductFormPage';
 import ProductDetail from './views/ProductDetail';
 import Favorites from './views/Favorites';
+import Profile from './views/Profile';
 import './App.css';
 
 function App() {
@@ -21,6 +22,10 @@ function App() {
   }, []);
 
   const handleAuthSuccess = (userData) => {
+    setUser(userData);
+  };
+
+  const handleUserUpdate = (userData) => {
     setUser(userData);
   };
 
@@ -45,6 +50,7 @@ function App() {
                 <a href="/">首页</a>
                 <a href="/product/form">发布商品</a>
                 <a href="/favorites">我的收藏</a>
+                <a href="/profile">个人中心</a>
                 <span className="user-info">欢迎, {user.username}</span>
                 <button className="logout-button" onClick={handleLogout}>
                   退出登录
@@ -68,6 +74,10 @@ function App() {
             <Route 
               path="/auth" 
               element={user ? <Navigate to="/" /> : <Auth onAuthSuccess={handleAuthSuccess} />} 
+            />
+            <Route 
+              path="/profile" 
+              element={user ? <Profile user={user} onUserUpdate={handleUserUpdate} /> : <Navigate to="/auth" />} 
             />
             <Route 
               path="/product/form" 

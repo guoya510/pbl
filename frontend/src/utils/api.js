@@ -51,7 +51,17 @@ export const userApi = {
   // 获取用户信息
   getProfile: () => api.get('/users/profile'),
   // 更新用户信息
-  updateProfile: (data) => api.put('/users/profile', data)
+  updateProfile: (data) => api.put('/users/profile', data),
+  // 修改密码
+  updatePassword: (data) => api.put('/users/password', data),
+  // 关注用户
+  followUser: (userId) => api.post(`/users/follow/${userId}`),
+  // 取消关注用户
+  unfollowUser: (userId) => api.post(`/users/unfollow/${userId}`),
+  // 获取关注列表
+  getFollowing: () => api.get('/users/following'),
+  // 获取粉丝列表
+  getFollowers: () => api.get('/users/followers')
 };
 
 // 商品相关API
