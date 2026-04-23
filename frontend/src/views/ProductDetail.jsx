@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Navigate } from 'react-router-dom';
-import { productApi } from '../utils/api';
+import { productApi, userApi } from '../utils/api';
 
 const ProductDetail = () => {
   const { id } = useParams();
@@ -8,13 +8,21 @@ const ProductDetail = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [user, setUser] = useState(null);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [following, setFollowing] = useState([]);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      const userData = JSON.parse(storedUser);
+      setUser(userData);
+      fetchFollowing();
     }
   }, []);
+
+  useEffect(() => {
+    checkIfFollowing();
+  }, [following, product]);
 
   useEffect(() => {
     if (id) {
@@ -43,6 +51,53 @@ const ProductDetail = () => {
       } catch (err) {
         alert('删除商品失败');
       }
+    }
+  };
+
+  const fetchFollowing = async () => {
+    try {
+      const data = await userApi.getFollowing();
+      setFollowing(data);
+    } catch (err) {
+      console.error('获取关注列表失败:', err);
+    }
+  };
+
+  const checkIfFollowing = () => {
+    if (user && product && product.seller) {
+      const isFollow = following.some(item => item._id === product.seller._id);
+      setIsFollowing(isFollow);
+    }
+  };
+
+  const handleFollow = async () => {
+    if (!user) {
+      alert('请先登录');
+      window.location.href = '/auth';
+      return;
+    }
+
+    if (user._id === product.seller._id) {
+      alert('不能关注自己');
+      return;
+    }
+
+    try {
+      if (isFollowing) {
+        await userApi.unfollowUser(product.seller._id);
+        setIsFollowing(false);
+        // 更新关注列表
+        setFollowing(prev => prev.filter(item => item._id !== product.seller._id));
+        alert('取消关注成功');
+      } else {
+        await userApi.followUser(product.seller._id);
+        setIsFollowing(true);
+        // 更新关注列表
+        setFollowing(prev => [...prev, product.seller]);
+        alert('关注成功');
+      }
+    } catch (err) {
+      alert('操作失败，请重试');
     }
   };
 
@@ -106,6 +161,14 @@ const ProductDetail = () => {
               <span className="seller-name">
                 {product.seller?.username || '未知卖家'}
               </span>
+              {product.seller && user && user._id !== product.seller._id && (
+                <button 
+                  className={`follow-button ${isFollowing ? 'following' : ''}`}
+                  onClick={handleFollow}
+                >
+                  {isFollowing ? '已关注' : '关注'}
+                </button>
+              )}
             </div>
           </div>
           
