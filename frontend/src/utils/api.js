@@ -118,4 +118,18 @@ export const messageApi = {
   deleteMessage: (id) => api.delete(`/messages/${id}`)
 };
 
+// 通知相关API
+export const notificationApi = {
+  // 获取通知列表
+  getNotifications: (params) => api.get('/notifications', { params }),
+  // 获取未读通知数量
+  getUnreadCount: () => api.get('/notifications/unread'),
+  // 标记通知为已读
+  markAsRead: (notificationId) => api.put('/notifications/read', { notificationId }),
+  // 标记所有通知为已读
+  markAllAsRead: () => api.put('/notifications/read'),
+  // 删除通知
+  deleteNotification: (id) => api.delete(`/notifications/${id}`)
+};
+
 export default api;
