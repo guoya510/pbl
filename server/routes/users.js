@@ -2,67 +2,106 @@ const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt');
 
-// 注册
+const authenticateToken = (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) {
+    return res.status(401).json({ message: '未授权' });
+  }
+  
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+    req.userId = decoded.id;
+    next();
+  } catch (error) {
+    return res.status(403).json({ message: '无效的token' });
+  }
+};
+
 router.post('/register', async (req, res) => {
   try {
     const { username, email, password } = req.body;
     
-    // 检查用户是否已存在
-    const existingUser = await User.findOne({ $or: [{ username }, { email }] });
-    if (existingUser) {
-      return res.status(400).json({ message: '用户名或邮箱已存在' });
+    if (!username || !email || !password) {
+      return res.status(400).json({ message: '请填写完整信息' });
     }
     
-    // 创建新用户
-    const user = new User({ username, email, password });
+    const existingUser = await User.findOne({ 
+      $or: [{ email }, { username }] 
+    });
+    
+    if (existingUser) {
+      return res.status(400).json({ message: '用户已存在' });
+    }
+    
+    const hashedPassword = await bcrypt.hash(password, 10);
+    
+    const user = new User({
+      username,
+      email,
+      password: hashedPassword
+    });
+    
     await user.save();
     
-    // 生成token
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'secret', { expiresIn: '7d' });
     
-    res.status(201).json({ user, token });
+    res.status(201).json({
+      token,
+      user: {
+        _id: user._id,
+        username: user.username,
+        email: user.email,
+        createdAt: user.createdAt
+      }
+    });
   } catch (error) {
+    console.error('注册错误:', error);
     res.status(500).json({ message: '服务器内部错误' });
   }
 });
 
-// 登录
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     
-    // 查找用户
+    if (!email || !password) {
+      return res.status(400).json({ message: '请填写邮箱和密码' });
+    }
+    
     const user = await User.findOne({ email });
+    
     if (!user) {
-      return res.status(400).json({ message: '邮箱或密码错误' });
+      return res.status(401).json({ message: '邮箱或密码错误' });
     }
     
-    // 验证密码
-    const isMatch = await user.matchPassword(password);
-    if (!isMatch) {
-      return res.status(400).json({ message: '邮箱或密码错误' });
+    const isValidPassword = await bcrypt.compare(password, user.password);
+    
+    if (!isValidPassword) {
+      return res.status(401).json({ message: '邮箱或密码错误' });
     }
     
-    // 生成token
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'secret', { expiresIn: '7d' });
     
-    res.json({ user, token });
+    res.json({
+      token,
+      user: {
+        _id: user._id,
+        username: user.username,
+        email: user.email,
+        createdAt: user.createdAt
+      }
+    });
   } catch (error) {
+    console.error('登录错误:', error);
     res.status(500).json({ message: '服务器内部错误' });
   }
 });
 
-// 获取用户信息
-router.get('/profile', async (req, res) => {
+router.get('/profile', authenticateToken, async (req, res) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ message: '未授权' });
-    }
-    
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
-    const user = await User.findById(decoded.id).select('-password');
+    const user = await User.findById(req.userId).select('-password');
     
     if (!user) {
       return res.status(404).json({ message: '用户不存在' });
@@ -74,63 +113,76 @@ router.get('/profile', async (req, res) => {
   }
 });
 
-// 更新用户信息
-router.put('/profile', async (req, res) => {
+router.put('/profile', authenticateToken, async (req, res) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ message: '未授权' });
-    }
+    const { username, email, avatar } = req.body;
     
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
-    const user = await User.findById(decoded.id);
+    const user = await User.findByIdAndUpdate(
+      req.userId,
+      { username, email, avatar },
+      { new: true }
+    ).select('-password');
     
     if (!user) {
       return res.status(404).json({ message: '用户不存在' });
     }
     
-    const { avatar, phone, gender } = req.body;
-    if (avatar) user.avatar = avatar;
-    if (phone) user.phone = phone;
-    if (gender) user.gender = gender;
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: '服务器内部错误' });
+  }
+});
+
+router.put('/password', authenticateToken, async (req, res) => {
+  try {
+    const { oldPassword, newPassword } = req.body;
     
+    const user = await User.findById(req.userId);
+    
+    if (!user) {
+      return res.status(404).json({ message: '用户不存在' });
+    }
+    
+    const isValidPassword = await bcrypt.compare(oldPassword, user.password);
+    
+    if (!isValidPassword) {
+      return res.status(401).json({ message: '旧密码错误' });
+    }
+    
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
     await user.save();
     
-    res.json(user);
+    res.json({ message: '密码修改成功' });
   } catch (error) {
     res.status(500).json({ message: '服务器内部错误' });
   }
 });
 
-// 关注用户
-router.post('/follow/:userId', async (req, res) => {
+router.post('/follow/:userId', authenticateToken, async (req, res) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ message: '未授权' });
-    }
+    const userId = req.params.userId;
     
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
-    const currentUser = await User.findById(decoded.id);
-    const userToFollow = await User.findById(req.params.userId);
-    
-    if (!currentUser || !userToFollow) {
-      return res.status(404).json({ message: '用户不存在' });
-    }
-    
-    if (currentUser._id.toString() === userToFollow._id.toString()) {
+    if (req.userId === userId) {
       return res.status(400).json({ message: '不能关注自己' });
     }
     
-    if (currentUser.following.includes(userToFollow._id)) {
-      return res.status(400).json({ message: '已经关注了该用户' });
+    const user = await User.findById(req.userId);
+    const targetUser = await User.findById(userId);
+    
+    if (!user || !targetUser) {
+      return res.status(404).json({ message: '用户不存在' });
     }
     
-    currentUser.following.push(userToFollow._id);
-    userToFollow.followers.push(currentUser._id);
+    if (user.following.includes(userId)) {
+      return res.status(400).json({ message: '已关注该用户' });
+    }
     
-    await currentUser.save();
-    await userToFollow.save();
+    user.following.push(userId);
+    targetUser.followers.push(req.userId);
+    
+    await user.save();
+    await targetUser.save();
     
     res.json({ message: '关注成功' });
   } catch (error) {
@@ -138,31 +190,22 @@ router.post('/follow/:userId', async (req, res) => {
   }
 });
 
-// 取消关注用户
-router.post('/unfollow/:userId', async (req, res) => {
+router.post('/unfollow/:userId', authenticateToken, async (req, res) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ message: '未授权' });
-    }
+    const userId = req.params.userId;
     
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
-    const currentUser = await User.findById(decoded.id);
-    const userToUnfollow = await User.findById(req.params.userId);
+    const user = await User.findById(req.userId);
+    const targetUser = await User.findById(userId);
     
-    if (!currentUser || !userToUnfollow) {
+    if (!user || !targetUser) {
       return res.status(404).json({ message: '用户不存在' });
     }
     
-    if (!currentUser.following.includes(userToUnfollow._id)) {
-      return res.status(400).json({ message: '未关注该用户' });
-    }
+    user.following = user.following.filter(id => id.toString() !== userId);
+    targetUser.followers = targetUser.followers.filter(id => id.toString() !== req.userId);
     
-    currentUser.following = currentUser.following.filter(id => id.toString() !== userToUnfollow._id.toString());
-    userToUnfollow.followers = userToUnfollow.followers.filter(id => id.toString() !== currentUser._id.toString());
-    
-    await currentUser.save();
-    await userToUnfollow.save();
+    await user.save();
+    await targetUser.save();
     
     res.json({ message: '取消关注成功' });
   } catch (error) {
@@ -170,42 +213,18 @@ router.post('/unfollow/:userId', async (req, res) => {
   }
 });
 
-// 获取当前用户关注的人
-router.get('/following', async (req, res) => {
+router.get('/following', authenticateToken, async (req, res) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ message: '未授权' });
-    }
-    
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
-    const user = await User.findById(decoded.id).populate('following', '-password');
-    
-    if (!user) {
-      return res.status(404).json({ message: '用户不存在' });
-    }
-    
+    const user = await User.findById(req.userId).populate('following', 'username avatar');
     res.json(user.following);
   } catch (error) {
     res.status(500).json({ message: '服务器内部错误' });
   }
 });
 
-// 获取当前用户的粉丝
-router.get('/followers', async (req, res) => {
+router.get('/followers', authenticateToken, async (req, res) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ message: '未授权' });
-    }
-    
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
-    const user = await User.findById(decoded.id).populate('followers', '-password');
-    
-    if (!user) {
-      return res.status(404).json({ message: '用户不存在' });
-    }
-    
+    const user = await User.findById(req.userId).populate('followers', 'username avatar');
     res.json(user.followers);
   } catch (error) {
     res.status(500).json({ message: '服务器内部错误' });

@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const favoriteSchema = new mongoose.Schema({
+const FavoriteSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -17,9 +17,6 @@ const favoriteSchema = new mongoose.Schema({
   }
 });
 
-// 确保用户对同一商品只能收藏一次
-favoriteSchema.index({ user: 1, product: 1 }, { unique: true });
+FavoriteSchema.index({ user: 1, product: 1 }, { unique: true });
 
-const Favorite = mongoose.model('Favorite', favoriteSchema);
-
-module.exports = Favorite;
+module.exports = mongoose.model('Favorite', FavoriteSchema);

@@ -3,15 +3,23 @@ const router = express.Router();
 const Message = require('../models/Message');
 const jwt = require('jsonwebtoken');
 
-// 发送消息
-router.post('/', async (req, res) => {
+const authenticateToken = (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) {
+    return res.status(401).json({ message: '未授权' });
+  }
+  
   try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ message: '未授权' });
-    }
-    
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+    req.userId = decoded.id;
+    next();
+  } catch (error) {
+    return res.status(403).json({ message: '无效的token' });
+  }
+};
+
+router.post('/', authenticateToken, async (req, res) => {
+  try {
     const { receiver, content } = req.body;
     
     if (!receiver || !content) {
@@ -19,33 +27,29 @@ router.post('/', async (req, res) => {
     }
     
     const message = new Message({
-      sender: decoded.id,
+      sender: req.userId,
       receiver,
       content
     });
     
     await message.save();
+    await message.populate('sender', 'username');
+    await message.populate('receiver', 'username');
+    
     res.status(201).json(message);
   } catch (error) {
     res.status(500).json({ message: '服务器内部错误' });
   }
 });
 
-// 获取消息列表
-router.get('/', async (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ message: '未授权' });
-    }
-    
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
     const messages = await Message.find({ 
-      $or: [{ sender: decoded.id }, { receiver: decoded.id }] 
+      $or: [{ sender: req.userId }, { receiver: req.userId }] 
     })
-    .populate('sender', 'username avatar')
-    .populate('receiver', 'username avatar')
-    .sort({ createdAt: -1 });
+      .populate('sender', 'username')
+      .populate('receiver', 'username')
+      .sort({ createdAt: -1 });
     
     res.json(messages);
   } catch (error) {
@@ -53,24 +57,17 @@ router.get('/', async (req, res) => {
   }
 });
 
-// 获取与特定用户的聊天记录
-router.get('/chat/:userId', async (req, res) => {
+router.get('/chat/:userId', authenticateToken, async (req, res) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ message: '未授权' });
-    }
-    
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
     const messages = await Message.find({ 
       $or: [
-        { sender: decoded.id, receiver: req.params.userId },
-        { sender: req.params.userId, receiver: decoded.id }
+        { sender: req.userId, receiver: req.params.userId },
+        { sender: req.params.userId, receiver: req.userId }
       ] 
     })
-    .populate('sender', 'username avatar')
-    .populate('receiver', 'username avatar')
-    .sort({ createdAt: 1 });
+      .populate('sender', 'username')
+      .populate('receiver', 'username')
+      .sort({ createdAt: 1 });
     
     res.json(messages);
   } catch (error) {
@@ -78,22 +75,15 @@ router.get('/chat/:userId', async (req, res) => {
   }
 });
 
-// 标记消息为已读
-router.put('/:id/read', async (req, res) => {
+router.put('/:id/read', authenticateToken, async (req, res) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ message: '未授权' });
-    }
-    
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
     const message = await Message.findById(req.params.id);
     
     if (!message) {
       return res.status(404).json({ message: '消息不存在' });
     }
     
-    if (message.receiver.toString() !== decoded.id) {
+    if (message.receiver.toString() !== req.userId) {
       return res.status(403).json({ message: '无权操作此消息' });
     }
     
@@ -106,22 +96,15 @@ router.put('/:id/read', async (req, res) => {
   }
 });
 
-// 删除消息
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', authenticateToken, async (req, res) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ message: '未授权' });
-    }
-    
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
     const message = await Message.findById(req.params.id);
     
     if (!message) {
       return res.status(404).json({ message: '消息不存在' });
     }
     
-    if (message.sender.toString() !== decoded.id && message.receiver.toString() !== decoded.id) {
+    if (message.sender.toString() !== req.userId && message.receiver.toString() !== req.userId) {
       return res.status(403).json({ message: '无权删除此消息' });
     }
     

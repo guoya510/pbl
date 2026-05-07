@@ -16,19 +16,23 @@ const TransactionSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
-  amount: {
+  price: {
     type: Number,
     required: true
   },
+  quantity: {
+    type: Number,
+    default: 1
+  },
   paymentMethod: {
     type: String,
-    enum: ['线上支付', '线下交易'],
-    required: true
+    enum: ['online', 'offline'],
+    default: 'offline'
   },
   status: {
     type: String,
-    enum: ['待付款', '待发货', '待收货', '已完成', '已取消'],
-    default: '待付款'
+    enum: ['待处理', '已完成', '已取消'],
+    default: '待处理'
   },
   createdAt: {
     type: Date,
@@ -38,6 +42,11 @@ const TransactionSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   }
+});
+
+TransactionSchema.pre('save', function(next) {
+  this.updatedAt = Date.now();
+  next();
 });
 
 module.exports = mongoose.model('Transaction', TransactionSchema);

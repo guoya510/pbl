@@ -3,70 +3,81 @@ const router = express.Router();
 const Favorite = require('../models/Favorite');
 const jwt = require('jsonwebtoken');
 
-// 收藏商品
-router.post('/', async (req, res) => {
+const authenticateToken = (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) {
+    return res.status(401).json({ message: '未授权' });
+  }
+  
   try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ message: '未授权' });
-    }
-    
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+    req.userId = decoded.id;
+    next();
+  } catch (error) {
+    return res.status(403).json({ message: '无效的token' });
+  }
+};
+
+router.post('/', authenticateToken, async (req, res) => {
+  try {
     const { productId } = req.body;
     
-    // 检查是否已经收藏
-    const existingFavorite = await Favorite.findOne({ user: decoded.id, product: productId });
+    if (!productId) {
+      return res.status(400).json({ message: '请提供商品ID' });
+    }
+    
+    const existingFavorite = await Favorite.findOne({
+      user: req.userId,
+      product: productId
+    });
+    
     if (existingFavorite) {
-      return res.status(400).json({ message: '已经收藏过此商品' });
+      return res.status(400).json({ message: '已收藏此商品' });
     }
     
     const favorite = new Favorite({
-      user: decoded.id,
+      user: req.userId,
       product: productId
     });
     
     await favorite.save();
-    res.status(201).json({ message: '收藏成功' });
+    await favorite.populate('product');
+    
+    res.status(201).json(favorite);
   } catch (error) {
     res.status(500).json({ message: '服务器内部错误' });
   }
 });
 
-// 取消收藏
-router.delete('/:productId', async (req, res) => {
+router.delete('/:productId', authenticateToken, async (req, res) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ message: '未授权' });
+    const favorite = await Favorite.findOne({
+      user: req.userId,
+      product: req.params.productId
+    });
+    
+    if (!favorite) {
+      return res.status(404).json({ message: '未收藏此商品' });
     }
     
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
-    const { productId } = req.params;
-    
-    const result = await Favorite.findOneAndDelete({ user: decoded.id, product: productId });
-    if (!result) {
-      return res.status(404).json({ message: '收藏不存在' });
-    }
-    
+    await favorite.remove();
     res.json({ message: '取消收藏成功' });
   } catch (error) {
     res.status(500).json({ message: '服务器内部错误' });
   }
 });
 
-// 获取用户的收藏列表
-router.get('/user', async (req, res) => {
+router.get('/user', authenticateToken, async (req, res) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ message: '未授权' });
-    }
-    
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
-    
-    const favorites = await Favorite.find({ user: decoded.id })
+    const favorites = await Favorite.find({ user: req.userId })
       .populate('product')
-      .populate('product.seller', 'username avatar')
+      .populate({
+        path: 'product',
+        populate: {
+          path: 'seller',
+          select: 'username'
+        }
+      })
       .sort({ createdAt: -1 });
     
     res.json(favorites);
@@ -75,18 +86,13 @@ router.get('/user', async (req, res) => {
   }
 });
 
-// 检查商品是否已收藏
-router.get('/check/:productId', async (req, res) => {
+router.get('/check/:productId', authenticateToken, async (req, res) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ message: '未授权' });
-    }
+    const favorite = await Favorite.findOne({
+      user: req.userId,
+      product: req.params.productId
+    });
     
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
-    const { productId } = req.params;
-    
-    const favorite = await Favorite.findOne({ user: decoded.id, product: productId });
     res.json({ isFavorited: !!favorite });
   } catch (error) {
     res.status(500).json({ message: '服务器内部错误' });

@@ -1,41 +1,42 @@
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
 
 const UserSchema = new mongoose.Schema({
   username: {
     type: String,
     required: true,
-    unique: true
+    unique: true,
+    trim: true,
+    minlength: 2,
+    maxlength: 20
   },
   email: {
     type: String,
     required: true,
-    unique: true
+    unique: true,
+    trim: true,
+    lowercase: true
   },
   password: {
     type: String,
-    required: true
+    required: true,
+    minlength: 6
   },
   avatar: {
     type: String,
     default: ''
   },
+  gender: {
+    type: String,
+    enum: ['男', '女', '保密'],
+    default: '保密'
+  },
   phone: {
     type: String,
     default: ''
   },
-  gender: {
-    type: String,
-    enum: ['男', '女', '其他'],
-    default: '其他'
-  },
   creditScore: {
     type: Number,
     default: 100
-  },
-  creditLevel: {
-    type: String,
-    default: '良好'
   },
   following: [{
     type: mongoose.Schema.Types.ObjectId,
@@ -48,22 +49,16 @@ const UserSchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now
   }
 });
 
-// 密码加密
-UserSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) {
-    next();
-  }
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
+UserSchema.pre('save', function(next) {
+  this.updatedAt = Date.now();
   next();
 });
-
-// 密码验证
-UserSchema.methods.matchPassword = async function(password) {
-  return await bcrypt.compare(password, this.password);
-};
 
 module.exports = mongoose.model('User', UserSchema);

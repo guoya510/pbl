@@ -4,45 +4,60 @@ const Transaction = require('../models/Transaction');
 const Product = require('../models/Product');
 const jwt = require('jsonwebtoken');
 
-// 创建交易
-router.post('/', async (req, res) => {
+const authenticateToken = (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) {
+    return res.status(401).json({ message: '未授权' });
+  }
+  
   try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ message: '未授权' });
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+    req.userId = decoded.id;
+    next();
+  } catch (error) {
+    return res.status(403).json({ message: '无效的token' });
+  }
+};
+
+router.post('/', authenticateToken, async (req, res) => {
+  try {
+    const { productId, quantity = 1, paymentMethod = 'offline' } = req.body;
+    
+    if (!productId) {
+      return res.status(400).json({ message: '请提供商品ID' });
     }
     
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
-    const { productId, paymentMethod } = req.body;
-    
-    // 查找商品
     const product = await Product.findById(productId);
+    
     if (!product) {
       return res.status(404).json({ message: '商品不存在' });
     }
     
     if (product.status !== '在售') {
-      return res.status(400).json({ message: '商品已下架或已售出' });
+      return res.status(400).json({ message: '商品已售出' });
     }
     
-    if (product.seller.toString() === decoded.id) {
+    if (product.seller.toString() === req.userId) {
       return res.status(400).json({ message: '不能购买自己的商品' });
     }
     
-    // 创建交易
     const transaction = new Transaction({
       product: productId,
-      buyer: decoded.id,
+      buyer: req.userId,
       seller: product.seller,
-      amount: product.price,
-      paymentMethod
+      price: product.price,
+      quantity,
+      paymentMethod,
+      status: '待处理'
     });
     
     await transaction.save();
     
-    // 更新商品状态
     product.status = '已售出';
     await product.save();
+    
+    await transaction.populate('product');
+    await transaction.populate('seller', 'username');
     
     res.status(201).json(transaction);
   } catch (error) {
@@ -50,22 +65,15 @@ router.post('/', async (req, res) => {
   }
 });
 
-// 获取交易列表
-router.get('/', async (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ message: '未授权' });
-    }
-    
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
-    const transactions = await Transaction.find({ 
-      $or: [{ buyer: decoded.id }, { seller: decoded.id }] 
+    const transactions = await Transaction.find({
+      $or: [{ buyer: req.userId }, { seller: req.userId }]
     })
-    .populate('product', 'name images price')
-    .populate('buyer', 'username avatar')
-    .populate('seller', 'username avatar')
-    .sort({ createdAt: -1 });
+      .populate('product')
+      .populate('buyer', 'username')
+      .populate('seller', 'username')
+      .sort({ createdAt: -1 });
     
     res.json(transactions);
   } catch (error) {
@@ -73,25 +81,18 @@ router.get('/', async (req, res) => {
   }
 });
 
-// 获取交易详情
-router.get('/:id', async (req, res) => {
+router.get('/:id', authenticateToken, async (req, res) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ message: '未授权' });
-    }
-    
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
     const transaction = await Transaction.findById(req.params.id)
-      .populate('product', 'name images price')
-      .populate('buyer', 'username avatar')
-      .populate('seller', 'username avatar');
+      .populate('product')
+      .populate('buyer', 'username')
+      .populate('seller', 'username');
     
     if (!transaction) {
       return res.status(404).json({ message: '交易不存在' });
     }
     
-    if (transaction.buyer.toString() !== decoded.id && transaction.seller.toString() !== decoded.id) {
+    if (transaction.buyer.toString() !== req.userId && transaction.seller.toString() !== req.userId) {
       return res.status(403).json({ message: '无权查看此交易' });
     }
     
@@ -101,35 +102,25 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// 更新交易状态
-router.put('/:id', async (req, res) => {
+router.put('/:id', authenticateToken, async (req, res) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ message: '未授权' });
-    }
-    
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+    const { status } = req.body;
     const transaction = await Transaction.findById(req.params.id);
     
     if (!transaction) {
       return res.status(404).json({ message: '交易不存在' });
     }
     
-    const { status } = req.body;
-    if (!status) {
-      return res.status(400).json({ message: '请提供交易状态' });
-    }
-    
-    // 检查权限
-    if (transaction.buyer.toString() !== decoded.id && transaction.seller.toString() !== decoded.id) {
+    if (transaction.seller.toString() !== req.userId) {
       return res.status(403).json({ message: '无权修改此交易' });
     }
     
-    // 更新状态
     transaction.status = status;
-    transaction.updatedAt = Date.now();
     await transaction.save();
+    
+    await transaction.populate('product');
+    await transaction.populate('buyer', 'username');
+    await transaction.populate('seller', 'username');
     
     res.json(transaction);
   } catch (error) {

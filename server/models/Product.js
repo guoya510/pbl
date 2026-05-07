@@ -3,31 +3,34 @@ const mongoose = require('mongoose');
 const ProductSchema = new mongoose.Schema({
   name: {
     type: String,
-    required: true
+    required: true,
+    trim: true,
+    maxlength: 100
   },
   description: {
     type: String,
-    required: true
+    trim: true,
+    maxlength: 500
   },
   price: {
     type: Number,
-    required: true
+    required: true,
+    min: 0
   },
   category: {
     type: String,
-    required: true
+    default: '其他'
   },
   location: {
     type: String,
-    required: true
+    default: ''
   },
-  images: {
-    type: [String],
-    default: []
-  },
+  images: [{
+    type: String
+  }],
   status: {
     type: String,
-    enum: ['在售', '已售出', '已下架'],
+    enum: ['在售', '已售出'],
     default: '在售'
   },
   seller: {
@@ -43,6 +46,11 @@ const ProductSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   }
+});
+
+ProductSchema.pre('save', function(next) {
+  this.updatedAt = Date.now();
+  next();
 });
 
 module.exports = mongoose.model('Product', ProductSchema);
