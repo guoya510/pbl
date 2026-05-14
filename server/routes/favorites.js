@@ -51,16 +51,15 @@ router.post('/', authenticateToken, async (req, res) => {
 
 router.delete('/:productId', authenticateToken, async (req, res) => {
   try {
-    const favorite = await Favorite.findOne({
+    const result = await Favorite.deleteOne({
       user: req.userId,
       product: req.params.productId
     });
     
-    if (!favorite) {
+    if (result.deletedCount === 0) {
       return res.status(404).json({ message: '未收藏此商品' });
     }
     
-    await favorite.remove();
     res.json({ message: '取消收藏成功' });
   } catch (error) {
     res.status(500).json({ message: '服务器内部错误' });
