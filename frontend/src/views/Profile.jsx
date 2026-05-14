@@ -126,11 +126,15 @@ const Profile = ({ user, onUserUpdate }) => {
   };
 
   const handleUnfollow = async (userId) => {
-    try {
-      await userApi.unfollowUser(userId);
-      setFollowing(following.filter(f => f._id !== userId));
-    } catch (err) {
-      console.error('取消关注失败:', err);
+    if (window.confirm('确定要取消关注吗？')) {
+      try {
+        await userApi.unfollowUser(userId);
+        setFollowing(following.filter(f => f._id !== userId));
+        alert('取消关注成功');
+      } catch (err) {
+        console.error('取消关注失败:', err);
+        alert('取消关注失败，请重试');
+      }
     }
   };
 
