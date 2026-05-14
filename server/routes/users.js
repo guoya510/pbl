@@ -231,4 +231,35 @@ router.get('/followers', authenticateToken, async (req, res) => {
   }
 });
 
+router.get('/credit', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.userId).select('creditScore creditLevel');
+    if (!user) {
+      return res.status(404).json({ message: '用户不存在' });
+    }
+    res.json({
+      creditScore: user.creditScore,
+      creditLevel: user.creditLevel
+    });
+  } catch (error) {
+    res.status(500).json({ message: '服务器内部错误' });
+  }
+});
+
+router.get('/:userId/credit', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId).select('creditScore creditLevel username');
+    if (!user) {
+      return res.status(404).json({ message: '用户不存在' });
+    }
+    res.json({
+      username: user.username,
+      creditScore: user.creditScore,
+      creditLevel: user.creditLevel
+    });
+  } catch (error) {
+    res.status(500).json({ message: '服务器内部错误' });
+  }
+});
+
 module.exports = router;

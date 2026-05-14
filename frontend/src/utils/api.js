@@ -61,7 +61,11 @@ export const userApi = {
   // 获取关注列表
   getFollowing: () => api.get('/users/following'),
   // 获取粉丝列表
-  getFollowers: () => api.get('/users/followers')
+  getFollowers: () => api.get('/users/followers'),
+  // 获取当前用户信用评级
+  getCredit: () => api.get('/users/credit'),
+  // 获取指定用户信用评级
+  getUserCredit: (userId) => api.get(`/users/${userId}/credit`)
 };
 
 // 商品相关API
