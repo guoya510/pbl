@@ -48,7 +48,7 @@ const Profile = ({ user, onUserUpdate }) => {
     try {
       setLoading(true);
       const data = await productApi.getUserProducts(user._id);
-      setMyProducts(data.products);
+      setMyProducts(data);
     } catch (err) {
       setError('获取商品列表失败');
     } finally {
@@ -92,7 +92,7 @@ const Profile = ({ user, onUserUpdate }) => {
   const fetchTransactions = async () => {
     try {
       const data = await transactionApi.getTransactions();
-      setTransactions(data.transactions);
+      setTransactions(data);
     } catch (err) {
       console.error('获取交易记录失败:', err);
     }
@@ -101,7 +101,7 @@ const Profile = ({ user, onUserUpdate }) => {
   const fetchMessages = async () => {
     try {
       const data = await messageApi.getMessages();
-      setMessages(data.messages);
+      setMessages(data);
     } catch (err) {
       console.error('获取消息失败:', err);
     }
