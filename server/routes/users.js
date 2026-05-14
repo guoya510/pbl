@@ -19,6 +19,18 @@ const authenticateToken = (req, res, next) => {
   }
 };
 
+const authenticateAdmin = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.userId);
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({ message: '管理员权限不足' });
+    }
+    next();
+  } catch (error) {
+    return res.status(500).json({ message: '服务器内部错误' });
+  }
+};
+
 router.post('/register', async (req, res) => {
   try {
     const { username, email, password } = req.body;
@@ -90,6 +102,7 @@ router.post('/login', async (req, res) => {
         _id: user._id,
         username: user.username,
         email: user.email,
+        role: user.role,
         createdAt: user.createdAt
       }
     });
@@ -257,6 +270,99 @@ router.get('/:userId/credit', async (req, res) => {
       creditScore: user.creditScore,
       creditLevel: user.creditLevel
     });
+  } catch (error) {
+    res.status(500).json({ message: '服务器内部错误' });
+  }
+});
+
+router.post('/admin/register', async (req, res) => {
+  try {
+    const { username, email, password } = req.body;
+    
+    if (!username || !email || !password) {
+      return res.status(400).json({ message: '请填写完整信息' });
+    }
+    
+    const existingUser = await User.findOne({ 
+      $or: [{ email }, { username }] 
+    });
+    
+    if (existingUser) {
+      return res.status(400).json({ message: '用户已存在' });
+    }
+    
+    const hashedPassword = await bcrypt.hash(password, 10);
+    
+    const user = new User({
+      username,
+      email,
+      password: hashedPassword,
+      role: 'admin'
+    });
+    
+    await user.save();
+    
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'secret', { expiresIn: '7d' });
+    
+    res.status(201).json({
+      token,
+      user: {
+        _id: user._id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        createdAt: user.createdAt
+      }
+    });
+  } catch (error) {
+    console.error('创建管理员错误:', error);
+    res.status(500).json({ message: '服务器内部错误' });
+  }
+});
+
+router.get('/admin/users', authenticateToken, authenticateAdmin, async (req, res) => {
+  try {
+    const users = await User.find().select('-password');
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ message: '服务器内部错误' });
+  }
+});
+
+router.put('/admin/users/:userId', authenticateToken, authenticateAdmin, async (req, res) => {
+  try {
+    const { role, creditScore } = req.body;
+    
+    const user = await User.findByIdAndUpdate(
+      req.params.userId,
+      { role, creditScore },
+      { new: true }
+    ).select('-password');
+    
+    if (!user) {
+      return res.status(404).json({ message: '用户不存在' });
+    }
+    
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: '服务器内部错误' });
+  }
+});
+
+router.delete('/admin/users/:userId', authenticateToken, authenticateAdmin, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    
+    if (!user) {
+      return res.status(404).json({ message: '用户不存在' });
+    }
+    
+    if (user.role === 'admin') {
+      return res.status(400).json({ message: '不能删除管理员账户' });
+    }
+    
+    await user.remove();
+    res.json({ message: '用户已删除' });
   } catch (error) {
     res.status(500).json({ message: '服务器内部错误' });
   }

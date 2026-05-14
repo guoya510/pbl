@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Product = require('../models/Product');
+const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 
 const authenticateToken = (req, res, next) => {
@@ -15,6 +16,18 @@ const authenticateToken = (req, res, next) => {
     next();
   } catch (error) {
     return res.status(403).json({ message: '无效的token' });
+  }
+};
+
+const authenticateAdmin = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.userId);
+    if (!user || user.role !== 'admin') {
+      return res.status(403).json({ message: '管理员权限不足' });
+    }
+    next();
+  } catch (error) {
+    return res.status(500).json({ message: '服务器内部错误' });
   }
 };
 
@@ -137,17 +150,47 @@ router.put('/:id', authenticateToken, async (req, res) => {
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
+    const user = await User.findById(req.userId);
     
     if (!product) {
       return res.status(404).json({ message: '商品不存在' });
     }
     
-    if (product.seller.toString() !== req.userId) {
+    if (product.seller.toString() !== req.userId && user.role !== 'admin') {
       return res.status(403).json({ message: '无权删除此商品' });
     }
     
     await product.remove();
     res.json({ message: '商品已删除' });
+  } catch (error) {
+    res.status(500).json({ message: '服务器内部错误' });
+  }
+});
+
+router.get('/admin/all', authenticateToken, authenticateAdmin, async (req, res) => {
+  try {
+    const products = await Product.find().populate('seller', 'username');
+    res.json(products);
+  } catch (error) {
+    res.status(500).json({ message: '服务器内部错误' });
+  }
+});
+
+router.put('/admin/:id', authenticateToken, authenticateAdmin, async (req, res) => {
+  try {
+    const { status } = req.body;
+    
+    const product = await Product.findByIdAndUpdate(
+      req.params.id,
+      { status },
+      { new: true }
+    ).populate('seller', 'username');
+    
+    if (!product) {
+      return res.status(404).json({ message: '商品不存在' });
+    }
+    
+    res.json(product);
   } catch (error) {
     res.status(500).json({ message: '服务器内部错误' });
   }
