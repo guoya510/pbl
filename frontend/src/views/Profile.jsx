@@ -27,18 +27,20 @@ const Profile = ({ user, onUserUpdate }) => {
   const [passwordSuccess, setPasswordSuccess] = useState('');
 
   useEffect(() => {
-    fetchUserData();
-    fetchMyProducts();
-    fetchTransactions();
-    fetchMessages();
-    fetchFollowing();
-    fetchFollowers();
-  }, []);
+    if (user) {
+      fetchUserData();
+      fetchMyProducts();
+      fetchTransactions();
+      fetchMessages();
+      fetchFollowing();
+      fetchFollowers();
+    }
+  }, [user]);
 
   const fetchUserData = async () => {
     try {
       const data = await userApi.getProfile();
-      setUserInfo(data.user);
+      setUserInfo(data);
     } catch (err) {
       setError('获取用户信息失败');
     }
@@ -68,10 +70,10 @@ const Profile = ({ user, onUserUpdate }) => {
   const handleSave = async () => {
     try {
       const data = await userApi.updateProfile(editForm);
-      setUserInfo(data.user);
+      setUserInfo(data);
       setEditing(false);
       // 更新本地存储中的用户信息
-      localStorage.setItem('user', JSON.stringify(data.user));
+      localStorage.setItem('user', JSON.stringify(data));
     } catch (err) {
       setError('更新用户信息失败');
     }
