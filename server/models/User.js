@@ -38,6 +38,11 @@ const UserSchema = new mongoose.Schema({
     type: Number,
     default: 100
   },
+  creditLevel: {
+    type: String,
+    enum: ['S', 'A', 'B', 'C', 'D'],
+    default: 'B'
+  },
   following: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
@@ -55,6 +60,19 @@ const UserSchema = new mongoose.Schema({
     default: Date.now
   }
 });
+
+UserSchema.methods.calculateCreditLevel = function() {
+  if (this.creditScore >= 150) return 'S';
+  if (this.creditScore >= 120) return 'A';
+  if (this.creditScore >= 100) return 'B';
+  if (this.creditScore >= 80) return 'C';
+  return 'D';
+};
+
+UserSchema.methods.updateCreditScore = function(points) {
+  this.creditScore = Math.max(0, Math.min(200, this.creditScore + points));
+  this.creditLevel = this.calculateCreditLevel();
+};
 
 UserSchema.pre('save', function(next) {
   this.updatedAt = Date.now();

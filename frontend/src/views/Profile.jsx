@@ -6,6 +6,8 @@ const Profile = ({ user, onUserUpdate }) => {
   const [myProducts, setMyProducts] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [messages, setMessages] = useState([]);
+  const [following, setFollowing] = useState([]);
+  const [followers, setFollowers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [editing, setEditing] = useState(false);
@@ -29,6 +31,8 @@ const Profile = ({ user, onUserUpdate }) => {
     fetchMyProducts();
     fetchTransactions();
     fetchMessages();
+    fetchFollowing();
+    fetchFollowers();
   }, []);
 
   const fetchUserData = async () => {
@@ -101,6 +105,44 @@ const Profile = ({ user, onUserUpdate }) => {
     } catch (err) {
       console.error('获取消息失败:', err);
     }
+  };
+
+  const fetchFollowing = async () => {
+    try {
+      const data = await userApi.getFollowing();
+      setFollowing(data);
+    } catch (err) {
+      console.error('获取关注列表失败:', err);
+    }
+  };
+
+  const fetchFollowers = async () => {
+    try {
+      const data = await userApi.getFollowers();
+      setFollowers(data);
+    } catch (err) {
+      console.error('获取粉丝列表失败:', err);
+    }
+  };
+
+  const handleUnfollow = async (userId) => {
+    try {
+      await userApi.unfollowUser(userId);
+      setFollowing(following.filter(f => f._id !== userId));
+    } catch (err) {
+      console.error('取消关注失败:', err);
+    }
+  };
+
+  const getCreditLevelColor = (level) => {
+    const colors = {
+      'S': '#FFD700',
+      'A': '#4CAF50',
+      'B': '#2196F3',
+      'C': '#FF9800',
+      'D': '#F44336'
+    };
+    return colors[level] || '#666';
   };
 
   const handlePasswordChange = (e) => {
@@ -176,6 +218,12 @@ const Profile = ({ user, onUserUpdate }) => {
           onClick={() => setActiveTab('products')}
         >
           我的商品
+        </button>
+        <button 
+          className={`tab-button ${activeTab === 'following' ? 'active' : ''}`}
+          onClick={() => setActiveTab('following')}
+        >
+          关注管理
         </button>
         <button 
           className={`tab-button ${activeTab === 'transactions' ? 'active' : ''}`}
@@ -284,6 +332,15 @@ const Profile = ({ user, onUserUpdate }) => {
                 <span className="value credit-score">{userInfo.creditScore || 100}</span>
               </div>
               <div className="info-item">
+                <span className="label">信用等级：</span>
+                <span 
+                  className="value credit-level" 
+                  style={{ color: getCreditLevelColor(userInfo.creditLevel || 'B') }}
+                >
+                  {userInfo.creditLevel || 'B'}
+                </span>
+              </div>
+              <div className="info-item">
                 <span className="label">注册时间：</span>
                 <span className="value">
                   {new Date(userInfo.createdAt).toLocaleString()}
@@ -291,6 +348,88 @@ const Profile = ({ user, onUserUpdate }) => {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* 关注管理标签页 */}
+      {activeTab === 'following' && (
+        <div className="following-section">
+          <h2>关注管理</h2>
+          
+          <div className="following-tabs">
+            <button 
+              className={`following-tab ${activeTab === 'following' ? 'active' : ''}`}
+              onClick={() => setActiveTab('following')}
+            >
+              我关注的 ({following.length})
+            </button>
+          </div>
+
+          {following.length > 0 ? (
+            <div className="following-list">
+              {following.map((user) => (
+                <div key={user._id} className="following-item">
+                  <div className="following-info">
+                    <div className="following-avatar">
+                      {user.avatar ? (
+                        <img src={user.avatar} alt={user.username} />
+                      ) : (
+                        <div className="default-avatar">
+                          {user.username.charAt(0)}
+                        </div>
+                      )}
+                    </div>
+                    <div className="following-details">
+                      <span className="following-name">{user.username}</span>
+                      <span className="following-credit">信用等级: {user.creditLevel || 'B'}</span>
+                    </div>
+                  </div>
+                  <button 
+                    className="unfollow-button" 
+                    onClick={() => handleUnfollow(user._id)}
+                  >
+                    取消关注
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="empty-state">
+              <div className="empty-icon">👥</div>
+              <h3>还没有关注任何人</h3>
+              <p>在商品详情页关注卖家，及时获取他们发布的商品</p>
+              <a href="/" className="primary-button">
+                浏览商品
+              </a>
+            </div>
+          )}
+
+          <div className="followers-section">
+            <h3>我的粉丝 ({followers.length})</h3>
+            {followers.length > 0 ? (
+              <div className="followers-list">
+                {followers.map((user) => (
+                  <div key={user._id} className="follower-item">
+                    <div className="follower-avatar">
+                      {user.avatar ? (
+                        <img src={user.avatar} alt={user.username} />
+                      ) : (
+                        <div className="default-avatar">
+                          {user.username.charAt(0)}
+                        </div>
+                      )}
+                    </div>
+                    <span className="follower-name">{user.username}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="empty-state">
+                <div className="empty-icon">🔍</div>
+                <p>还没有粉丝</p>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
