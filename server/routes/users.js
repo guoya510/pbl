@@ -228,7 +228,7 @@ router.post('/unfollow/:userId', authenticateToken, async (req, res) => {
 
 router.get('/following', authenticateToken, async (req, res) => {
   try {
-    const user = await User.findById(req.userId).populate('following', 'username avatar');
+    const user = await User.findById(req.userId).populate('following', '_id username avatar creditLevel');
     res.json(user.following);
   } catch (error) {
     res.status(500).json({ message: '服务器内部错误' });
@@ -237,7 +237,7 @@ router.get('/following', authenticateToken, async (req, res) => {
 
 router.get('/followers', authenticateToken, async (req, res) => {
   try {
-    const user = await User.findById(req.userId).populate('followers', 'username avatar');
+    const user = await User.findById(req.userId).populate('followers', '_id username avatar');
     res.json(user.followers);
   } catch (error) {
     res.status(500).json({ message: '服务器内部错误' });
