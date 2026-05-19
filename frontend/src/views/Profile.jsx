@@ -27,18 +27,20 @@ const Profile = ({ user, onUserUpdate }) => {
   const [passwordSuccess, setPasswordSuccess] = useState('');
 
   useEffect(() => {
-    fetchUserData();
-    fetchMyProducts();
-    fetchTransactions();
-    fetchMessages();
-    fetchFollowing();
-    fetchFollowers();
-  }, []);
+    if (user) {
+      fetchUserData();
+      fetchMyProducts();
+      fetchTransactions();
+      fetchMessages();
+      fetchFollowing();
+      fetchFollowers();
+    }
+  }, [user]);
 
   const fetchUserData = async () => {
     try {
       const data = await userApi.getProfile();
-      setUserInfo(data.user);
+      setUserInfo(data);
     } catch (err) {
       setError('获取用户信息失败');
     }
@@ -48,7 +50,7 @@ const Profile = ({ user, onUserUpdate }) => {
     try {
       setLoading(true);
       const data = await productApi.getUserProducts(user._id);
-      setMyProducts(data.products);
+      setMyProducts(data);
     } catch (err) {
       setError('获取商品列表失败');
     } finally {
@@ -68,10 +70,10 @@ const Profile = ({ user, onUserUpdate }) => {
   const handleSave = async () => {
     try {
       const data = await userApi.updateProfile(editForm);
-      setUserInfo(data.user);
+      setUserInfo(data);
       setEditing(false);
       // 更新本地存储中的用户信息
-      localStorage.setItem('user', JSON.stringify(data.user));
+      localStorage.setItem('user', JSON.stringify(data));
     } catch (err) {
       setError('更新用户信息失败');
     }
@@ -92,7 +94,7 @@ const Profile = ({ user, onUserUpdate }) => {
   const fetchTransactions = async () => {
     try {
       const data = await transactionApi.getTransactions();
-      setTransactions(data.transactions);
+      setTransactions(data);
     } catch (err) {
       console.error('获取交易记录失败:', err);
     }
@@ -101,7 +103,7 @@ const Profile = ({ user, onUserUpdate }) => {
   const fetchMessages = async () => {
     try {
       const data = await messageApi.getMessages();
-      setMessages(data.messages);
+      setMessages(data);
     } catch (err) {
       console.error('获取消息失败:', err);
     }
@@ -126,11 +128,15 @@ const Profile = ({ user, onUserUpdate }) => {
   };
 
   const handleUnfollow = async (userId) => {
-    try {
-      await userApi.unfollowUser(userId);
-      setFollowing(following.filter(f => f._id !== userId));
-    } catch (err) {
-      console.error('取消关注失败:', err);
+    if (window.confirm('确定要取消关注吗？')) {
+      try {
+        await userApi.unfollowUser(userId);
+        setFollowing(following.filter(f => f._id !== userId));
+        alert('取消关注成功');
+      } catch (err) {
+        console.error('取消关注失败:', err);
+        alert('取消关注失败，请重试');
+      }
     }
   };
 
