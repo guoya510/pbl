@@ -259,6 +259,18 @@ router.get('/credit', authenticateToken, async (req, res) => {
   }
 });
 
+router.get('/:userId', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId).select('-password');
+    if (!user) {
+      return res.status(404).json({ message: '用户不存在' });
+    }
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: '服务器内部错误' });
+  }
+});
+
 router.get('/:userId/credit', async (req, res) => {
   try {
     const user = await User.findById(req.params.userId).select('creditScore creditLevel username');
