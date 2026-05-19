@@ -512,7 +512,7 @@ const Profile = ({ user, onUserUpdate }) => {
                       商品: {transaction.product?.name || '商品信息已删除'}
                     </div>
                     <div className="transaction-amount">
-                      金额: ¥{transaction.amount}
+                      金额: ¥{transaction.price}
                     </div>
                     <div className="transaction-time">
                       时间: {new Date(transaction.createdAt).toLocaleString()}
