@@ -33,23 +33,70 @@ const authenticateAdmin = async (req, res, next) => {
 
 router.get('/', async (req, res) => {
   try {
-    const { keyword, category, location, sort = 'createdAt', page = 1, limit = 20 } = req.query;
+    const { keyword, category, campus, building, minPrice, maxPrice, sort = 'createdAt', page = 1, limit = 20 } = req.query;
     
     let query = { status: '在售' };
+    let orConditions = [];
+    let andConditions = [];
     
     if (keyword) {
-      query.$or = [
-        { name: { $regex: keyword, $options: 'i' } },
-        { description: { $regex: keyword, $options: 'i' } }
-      ];
+      orConditions.push({ name: { $regex: keyword, $options: 'i' } });
+      orConditions.push({ description: { $regex: keyword, $options: 'i' } });
     }
     
     if (category) {
       query.category = category;
     }
     
-    if (location) {
-      query.location = location;
+    if (campus) {
+      const campusKeywords = {
+        '东校区': ['东', '东区', '东校'],
+        '西校区': ['西', '西区', '西校'],
+        '南校区': ['南', '南区', '南校'],
+        '北校区': ['北', '北区', '北校']
+      };
+      
+      const keywords = campusKeywords[campus] || [campus];
+      const campusConditions = [];
+      
+      keywords.forEach(keyword => {
+        campusConditions.push({ campus: { $regex: keyword, $options: 'i' } });
+        campusConditions.push({ location: { $regex: keyword, $options: 'i' } });
+      });
+      
+      andConditions.push({ $or: campusConditions });
+    }
+    
+    if (building) {
+      andConditions.push({
+        $or: [
+          { building: { $regex: building, $options: 'i' } },
+          { location: { $regex: building, $options: 'i' } }
+        ]
+      });
+    }
+    
+    if (orConditions.length > 0) {
+      query.$or = orConditions;
+    }
+    
+    if (andConditions.length > 0) {
+      if (query.$or) {
+        const originalOr = query.$or;
+        delete query.$or;
+        andConditions.push({ $or: originalOr });
+      }
+      query.$and = andConditions;
+    }
+    
+    if (minPrice || maxPrice) {
+      query.price = {};
+      if (minPrice) {
+        query.price.$gte = parseFloat(minPrice);
+      }
+      if (maxPrice) {
+        query.price.$lte = parseFloat(maxPrice);
+      }
     }
     
     const products = await Product.find(query)

@@ -25,6 +25,14 @@ const ProductSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  campus: {
+    type: String,
+    default: ''
+  },
+  building: {
+    type: String,
+    default: ''
+  },
   images: [{
     type: String
   }],
