@@ -65,7 +65,9 @@ export const userApi = {
   // 获取当前用户信用评级
   getCredit: () => api.get('/users/credit'),
   // 获取指定用户信用评级
-  getUserCredit: (userId) => api.get(`/users/${userId}/credit`)
+  getUserCredit: (userId) => api.get(`/users/${userId}/credit`),
+  // 获取指定用户信息
+  getUserInfo: (userId) => api.get(`/users/${userId}`)
 };
 
 // 商品相关API

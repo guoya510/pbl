@@ -23,7 +23,7 @@ const Chat = () => {
 
     const fetchReceiver = async () => {
       try {
-        const user = await userApi.getProfile(userId);
+        const user = await userApi.getUserInfo(userId);
         setReceiver(user);
       } catch (error) {
         console.error('获取接收者信息失败:', error);
