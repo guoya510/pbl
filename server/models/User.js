@@ -34,6 +34,10 @@ const UserSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  location: {
+    type: String,
+    default: ''
+  },
   creditScore: {
     type: Number,
     default: 100

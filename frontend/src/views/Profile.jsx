@@ -25,6 +25,10 @@ const Profile = ({ user, onUserUpdate }) => {
   });
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [modalMessage, setModalMessage] = useState('');
+  const [usernameError, setUsernameError] = useState('');
+  const [phoneError, setPhoneError] = useState('');
 
   useEffect(() => {
     if (user) {
@@ -72,10 +76,13 @@ const Profile = ({ user, onUserUpdate }) => {
       const data = await userApi.updateProfile(editForm);
       setUserInfo(data);
       setEditing(false);
-      // 更新本地存储中的用户信息
       localStorage.setItem('user', JSON.stringify(data));
+      setModalMessage('更新成功！');
+      setShowModal(true);
     } catch (err) {
-      setError('更新用户信息失败');
+      const errorMessage = err.response?.data?.message || '更新用户信息失败';
+      setModalMessage(errorMessage);
+      setShowModal(true);
     }
   };
 
@@ -83,12 +90,54 @@ const Profile = ({ user, onUserUpdate }) => {
     setEditing(false);
   };
 
-  const handleInputChange = (e) => {
+  const validateUsername = async (username) => {
+    if (!username || username === userInfo.username) {
+      setUsernameError('');
+      return;
+    }
+    try {
+      const response = await fetch(`/api/users/check-username?username=${encodeURIComponent(username)}`);
+      const data = await response.json();
+      if (data.exists) {
+        setUsernameError('用户名已被使用');
+      } else {
+        setUsernameError('');
+      }
+    } catch (err) {
+      console.error('验证用户名失败:', err);
+    }
+  };
+
+  const validatePhone = async (phone) => {
+    if (!phone || phone === userInfo.phone) {
+      setPhoneError('');
+      return;
+    }
+    try {
+      const response = await fetch(`/api/users/check-phone?phone=${encodeURIComponent(phone)}`);
+      const data = await response.json();
+      if (data.exists) {
+        setPhoneError('电话号码已被使用');
+      } else {
+        setPhoneError('');
+      }
+    } catch (err) {
+      console.error('验证电话失败:', err);
+    }
+  };
+
+  const handleInputChange = async (e) => {
     const { name, value } = e.target;
     setEditForm(prev => ({
       ...prev,
       [name]: value
     }));
+    
+    if (name === 'username') {
+      await validateUsername(value);
+    } else if (name === 'phone') {
+      await validatePhone(value);
+    }
   };
 
   const fetchTransactions = async () => {
@@ -613,6 +662,16 @@ const Profile = ({ user, onUserUpdate }) => {
                 修改密码
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {showModal && (
+        <div className="modal-overlay" onClick={() => setShowModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <p>{modalMessage}</p>
+            <button className="modal-close" onClick={() => setShowModal(false)}>
+              确定
+            </button>
           </div>
         </div>
       )}

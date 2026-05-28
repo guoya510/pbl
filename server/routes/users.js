@@ -128,11 +128,31 @@ router.get('/profile', authenticateToken, async (req, res) => {
 
 router.put('/profile', authenticateToken, async (req, res) => {
   try {
-    const { username, email, avatar } = req.body;
+    const { username, email, avatar, phone, location } = req.body;
+    
+    if (username) {
+      const existingUser = await User.findOne({ 
+        username, 
+        _id: { $ne: req.userId } 
+      });
+      if (existingUser) {
+        return res.status(400).json({ message: '用户名已被使用' });
+      }
+    }
+    
+    if (phone) {
+      const existingUser = await User.findOne({ 
+        phone, 
+        _id: { $ne: req.userId } 
+      });
+      if (existingUser) {
+        return res.status(400).json({ message: '电话号码已被使用' });
+      }
+    }
     
     const user = await User.findByIdAndUpdate(
       req.userId,
-      { username, email, avatar },
+      { username, email, avatar, phone, location },
       { new: true }
     ).select('-password');
     
@@ -266,6 +286,32 @@ router.get('/:userId', authenticateToken, async (req, res) => {
       return res.status(404).json({ message: '用户不存在' });
     }
     res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: '服务器内部错误' });
+  }
+});
+
+router.get('/check-username', async (req, res) => {
+  try {
+    const { username } = req.query;
+    if (!username) {
+      return res.status(400).json({ message: '请提供用户名' });
+    }
+    const user = await User.findOne({ username });
+    res.json({ exists: !!user });
+  } catch (error) {
+    res.status(500).json({ message: '服务器内部错误' });
+  }
+});
+
+router.get('/check-phone', async (req, res) => {
+  try {
+    const { phone } = req.query;
+    if (!phone) {
+      return res.status(400).json({ message: '请提供电话号码' });
+    }
+    const user = await User.findOne({ phone });
+    res.json({ exists: !!user });
   } catch (error) {
     res.status(500).json({ message: '服务器内部错误' });
   }
