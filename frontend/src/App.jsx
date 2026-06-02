@@ -10,6 +10,11 @@ import Notifications from './views/Notifications';
 import Chat from './views/Chat';
 import CreateTransaction from './views/CreateTransaction';
 import Footer from './components/Footer';
+import AdminDashboard from './views/AdminDashboard';
+import ProductReview from './views/ProductReview';
+import ProductManagement from './views/ProductManagement';
+import UserManagement from './views/UserManagement';
+import AdminRegister from './components/AdminRegister';
 import './App.css';
 
 function App() {
@@ -39,6 +44,8 @@ function App() {
     setUser(null);
   };
 
+  const isAdmin = user?.role === 'admin';
+
   if (loading) {
     return <div className="loading">加载中...</div>;
   }
@@ -57,6 +64,7 @@ function App() {
                 <a href="/notifications">通知</a>
                 <a href="/chat">消息</a>
                 <a href="/profile">个人中心</a>
+                {isAdmin && <a href="/admin/dashboard" className="admin-link">管理后台</a>}
                 <span className="user-info">欢迎, {user.username}</span>
                 <button className="logout-button" onClick={handleLogout}>
                   退出登录
@@ -108,6 +116,26 @@ function App() {
             <Route 
               path="/transaction/create/:productId" 
               element={user ? <CreateTransaction /> : <Navigate to="/auth" />} 
+            />
+            <Route 
+              path="/admin/dashboard" 
+              element={isAdmin ? <AdminDashboard /> : <Navigate to="/" />} 
+            />
+            <Route 
+              path="/admin/review" 
+              element={isAdmin ? <ProductReview /> : <Navigate to="/" />} 
+            />
+            <Route 
+              path="/admin/products" 
+              element={isAdmin ? <ProductManagement /> : <Navigate to="/" />} 
+            />
+            <Route 
+              path="/admin/users" 
+              element={isAdmin ? <UserManagement /> : <Navigate to="/" />} 
+            />
+            <Route 
+              path="/admin/register" 
+              element={<AdminRegister onRegister={handleAuthSuccess} />} 
             />
           </Routes>
         </div>
