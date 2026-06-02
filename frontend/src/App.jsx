@@ -7,7 +7,6 @@ import ProductDetail from './views/ProductDetail';
 import Favorites from './views/Favorites';
 import Profile from './views/Profile';
 import Notifications from './views/Notifications';
-import ChatList from './views/ChatList';
 import Chat from './views/Chat';
 import Footer from './components/Footer';
 import './App.css';
@@ -103,10 +102,6 @@ function App() {
             />
             <Route 
               path="/chat" 
-              element={user ? <ChatList /> : <Navigate to="/auth" />} 
-            />
-            <Route 
-              path="/chat/:userId" 
               element={user ? <Chat /> : <Navigate to="/auth" />} 
             />
           </Routes>
