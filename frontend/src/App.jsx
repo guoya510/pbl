@@ -9,6 +9,7 @@ import Profile from './views/Profile';
 import Notifications from './views/Notifications';
 import ChatList from './views/ChatList';
 import Chat from './views/Chat';
+import Footer from './components/Footer';
 import './App.css';
 
 function App() {
@@ -110,6 +111,8 @@ function App() {
             />
           </Routes>
         </div>
+        
+        <Footer />
       </div>
     </Router>
   );

@@ -17,44 +17,40 @@ const Home = () => {
   const [showFilters, setShowFilters] = useState(false);
 
   const campuses = [
-    { value: '', label: '全部校区' },
-    { value: '东校区', label: '东校区' },
-    { value: '西校区', label: '西校区' },
-    { value: '南校区', label: '南校区' },
-    { value: '北校区', label: '北校区' }
+    { value: '', label: 'All Campuses' },
+    { value: 'East', label: 'East Campus' },
+    { value: 'West', label: 'West Campus' },
+    { value: 'South', label: 'South Campus' },
+    { value: 'North', label: 'North Campus' }
   ];
 
   const buildings = {
     '': [
-      { value: '', label: '全部楼栋' }
+      { value: '', label: 'All Buildings' }
     ],
-    '东校区': [
-      { value: '', label: '全部楼栋' },
-      { value: '教学楼A', label: '教学楼A' },
-      { value: '教学楼B', label: '教学楼B' },
-      { value: '宿舍楼1', label: '宿舍楼1' },
-      { value: '宿舍楼2', label: '宿舍楼2' },
-      { value: '图书馆', label: '图书馆' },
-      { value: '食堂', label: '食堂' }
+    'East': [
+      { value: '', label: 'All Buildings' },
+      { value: 'BuildingA', label: 'Building A' },
+      { value: 'BuildingB', label: 'Building B' },
+      { value: 'Dorm1', label: 'Dormitory 1' }
     ],
-    '西校区': [
-      { value: '', label: '全部楼栋' },
-      { value: '实验楼', label: '实验楼' },
-      { value: '宿舍楼3', label: '宿舍楼3' },
-      { value: '体育馆', label: '体育馆' },
-      { value: '行政楼', label: '行政楼' }
+    'West': [
+      { value: '', label: 'All Buildings' },
+      { value: 'Lab', label: 'Lab Building' },
+      { value: 'Dorm3', label: 'Dormitory 3' },
+      { value: 'Admin', label: 'Admin Building' }
     ],
-    '南校区': [
-      { value: '', label: '全部楼栋' },
-      { value: '艺术楼', label: '艺术楼' },
-      { value: '宿舍楼4', label: '宿舍楼4' },
-      { value: '操场', label: '操场' }
+    'South': [
+      { value: '', label: 'All Buildings' },
+      { value: 'Art', label: 'Art Building' },
+      { value: 'Dorm4', label: 'Dormitory 4' },
+      { value: 'Library', label: 'Library' }
     ],
-    '北校区': [
-      { value: '', label: '全部楼栋' },
-      { value: '综合楼', label: '综合楼' },
-      { value: '宿舍楼5', label: '宿舍楼5' },
-      { value: '食堂', label: '食堂' }
+    'North': [
+      { value: '', label: 'All Buildings' },
+      { value: 'Complex', label: 'Complex Building' },
+      { value: 'Dorm5', label: 'Dormitory 5' },
+      { value: 'Gym', label: 'Gymnasium' }
     ]
   };
 

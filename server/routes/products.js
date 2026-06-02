@@ -36,76 +36,54 @@ router.get('/', async (req, res) => {
     const { keyword, category, campus, building, minPrice, maxPrice, sort = 'createdAt', page = 1, limit = 20 } = req.query;
     
     let query = { status: '在售' };
-    let orConditions = [];
-    let andConditions = [];
+    let andConditions = [{ status: '在售' }];
     
     if (keyword) {
-      orConditions.push({ name: { $regex: keyword, $options: 'i' } });
-      orConditions.push({ description: { $regex: keyword, $options: 'i' } });
-    }
-    
-    if (category) {
-      query.category = category;
-    }
-    
-    if (campus) {
-      const campusKeywords = {
-        '东校区': ['东', '东区', '东校'],
-        '西校区': ['西', '西区', '西校'],
-        '南校区': ['南', '南区', '南校'],
-        '北校区': ['北', '北区', '北校']
-      };
-      
-      const keywords = campusKeywords[campus] || [campus];
-      const campusConditions = [];
-      
-      keywords.forEach(keyword => {
-        campusConditions.push({ campus: { $regex: keyword, $options: 'i' } });
-        campusConditions.push({ location: { $regex: keyword, $options: 'i' } });
-      });
-      
-      andConditions.push({ $or: campusConditions });
-    }
-    
-    if (building) {
       andConditions.push({
         $or: [
-          { building: { $regex: building, $options: 'i' } },
-          { location: { $regex: building, $options: 'i' } }
+          { name: { $regex: keyword, $options: 'i' } },
+          { description: { $regex: keyword, $options: 'i' } }
         ]
       });
     }
     
-    if (orConditions.length > 0) {
-      query.$or = orConditions;
+    if (category) {
+      andConditions.push({ category: category });
     }
     
-    if (andConditions.length > 0) {
-      if (query.$or) {
-        const originalOr = query.$or;
-        delete query.$or;
-        andConditions.push({ $or: originalOr });
-      }
-      query.$and = andConditions;
+    if (campus) {
+      andConditions.push({ campus: campus });
+    }
+    
+    if (building) {
+      andConditions.push({ building: building });
     }
     
     if (minPrice || maxPrice) {
-      query.price = {};
+      const priceQuery = {};
       if (minPrice) {
-        query.price.$gte = parseFloat(minPrice);
+        priceQuery.$gte = parseFloat(minPrice);
       }
       if (maxPrice) {
-        query.price.$lte = parseFloat(maxPrice);
+        priceQuery.$lte = parseFloat(maxPrice);
       }
+      andConditions.push({ price: priceQuery });
     }
     
-    const products = await Product.find(query)
+    let finalQuery;
+    if (andConditions.length === 1) {
+      finalQuery = andConditions[0];
+    } else {
+      finalQuery = { $and: andConditions };
+    }
+    
+    const products = await Product.find(finalQuery)
       .populate('seller', 'username')
       .sort({ [sort.startsWith('-') ? sort.slice(1) : sort]: sort.startsWith('-') ? -1 : 1 })
       .skip((page - 1) * limit)
       .limit(parseInt(limit));
     
-    const total = await Product.countDocuments(query);
+    const total = await Product.countDocuments(finalQuery);
     
     res.json({
       products,
