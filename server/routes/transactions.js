@@ -21,7 +21,7 @@ const authenticateToken = (req, res, next) => {
 
 router.post('/', authenticateToken, async (req, res) => {
   try {
-    const { productId, quantity = 1, paymentMethod = 'offline' } = req.body;
+    const { productId, quantity = 1, paymentMethod = 'offline', deliveryMethod = 'face_to_face', deliveryAddress } = req.body;
     
     if (!productId) {
       return res.status(400).json({ message: '请提供商品ID' });
@@ -48,6 +48,8 @@ router.post('/', authenticateToken, async (req, res) => {
       price: product.price,
       quantity,
       paymentMethod,
+      deliveryMethod,
+      deliveryAddress,
       status: '待处理'
     });
     

@@ -29,6 +29,15 @@ const TransactionSchema = new mongoose.Schema({
     enum: ['online', 'offline'],
     default: 'offline'
   },
+  deliveryMethod: {
+    type: String,
+    enum: ['face_to_face', 'express'],
+    default: 'face_to_face',
+    required: true
+  },
+  deliveryAddress: {
+    type: String
+  },
   status: {
     type: String,
     enum: ['待处理', '已完成', '已取消'],

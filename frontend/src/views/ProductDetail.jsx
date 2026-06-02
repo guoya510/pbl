@@ -221,6 +221,11 @@ const ProductDetail = () => {
             >
               {isFavorited ? '取消收藏' : '收藏'}
             </button>
+            {user && user._id !== product.seller?._id && product.status === '在售' && (
+              <a href={`/transaction/create/${product._id}`} className="buy-button">
+                立即购买
+              </a>
+            )}
             {user && user._id === product.seller?._id && (
               <>
                 <a href={`/product/form?id=${product._id}`} className="edit-button">

@@ -8,6 +8,7 @@ import Favorites from './views/Favorites';
 import Profile from './views/Profile';
 import Notifications from './views/Notifications';
 import Chat from './views/Chat';
+import CreateTransaction from './views/CreateTransaction';
 import Footer from './components/Footer';
 import './App.css';
 
@@ -103,6 +104,10 @@ function App() {
             <Route 
               path="/chat" 
               element={user ? <Chat /> : <Navigate to="/auth" />} 
+            />
+            <Route 
+              path="/transaction/create/:productId" 
+              element={user ? <CreateTransaction /> : <Navigate to="/auth" />} 
             />
           </Routes>
         </div>
