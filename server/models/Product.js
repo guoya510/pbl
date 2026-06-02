@@ -30,8 +30,17 @@ const ProductSchema = new mongoose.Schema({
   }],
   status: {
     type: String,
-    enum: ['在售', '已售出'],
+    enum: ['在售', '已售出', '已下架'],
     default: '在售'
+  },
+  reviewStatus: {
+    type: String,
+    enum: ['待审核', '已通过', '已拒绝'],
+    default: '待审核'
+  },
+  reviewReason: {
+    type: String,
+    default: ''
   },
   seller: {
     type: mongoose.Schema.Types.ObjectId,

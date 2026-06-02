@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'http://localhost:5000/api',
+  baseURL: '/api',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json'
@@ -31,6 +31,19 @@ api.interceptors.response.use(
     if (error.response) {
       // 处理错误响应
       console.error('API Error:', error.response.data);
+      
+      // 处理token失效（403错误）
+      if (error.response.status === 403 && error.response.data?.message === '无效的token') {
+        // 清除本地存储中的token和用户信息
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        
+        // 提示用户重新登录
+        alert('登录已过期，请重新登录');
+        
+        // 跳转到登录页面
+        window.location.href = '/auth';
+      }
     } else if (error.request) {
       // 处理网络错误
       console.error('Network Error:', error.request);
@@ -134,6 +147,46 @@ export const notificationApi = {
   markAllAsRead: () => api.put('/notifications/read'),
   // 删除通知
   deleteNotification: (id) => api.delete(`/notifications/${id}`)
+};
+
+// 管理员相关API
+export const adminApi = {
+  // 获取统计数据
+  getStats: () => api.get('/stats'),
+  // 获取待审核商品
+  getPendingReviews: () => api.get('/products/admin/review/pending'),
+  // 审核商品
+  reviewProduct: (id, data) => api.put(`/products/admin/review/${id}`, data),
+  // 下架商品
+  offlineProduct: (id, data) => api.put(`/products/admin/offline/${id}`, data),
+  // 获取所有商品（管理）
+  getAllProducts: (params) => api.get('/products/admin/all', { params }),
+  // 获取商品统计
+  getProductStats: () => api.get('/products/admin/stats'),
+  // 获取商品分类
+  getCategories: () => api.get('/products/admin/categories'),
+  // 批量审核通过
+  batchApprove: (data) => api.put('/products/admin/batch/approve', data),
+  // 批量下架
+  batchOffline: (data) => api.put('/products/admin/batch/offline', data),
+  // 批量删除商品
+  batchDeleteProducts: (data) => api({
+    method: 'delete',
+    url: '/products/admin/batch',
+    data: data
+  }),
+  // 删除商品
+  deleteProduct: (id) => api.delete(`/products/${id}`),
+  // 获取所有用户（管理）
+  getAllUsers: (params) => api.get('/users/admin/users', { params }),
+  // 获取用户统计
+  getUserStats: () => api.get('/users/admin/users/stats'),
+  // 更新用户信息
+  updateUser: (id, data) => api.put(`/users/admin/users/${id}`, data),
+  // 删除用户
+  deleteUser: (id) => api.delete(`/users/admin/users/${id}`),
+  // 管理员注册
+  adminRegister: (data) => api.post('/users/admin/register', data)
 };
 
 export default api;

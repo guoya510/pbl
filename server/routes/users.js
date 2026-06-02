@@ -322,8 +322,67 @@ router.post('/admin/register', async (req, res) => {
 
 router.get('/admin/users', authenticateToken, authenticateAdmin, async (req, res) => {
   try {
-    const users = await User.find().select('-password');
-    res.json(users);
+    const { keyword, role, creditLevel, sort = '-createdAt', page = 1, limit = 20 } = req.query;
+    
+    let query = {};
+    
+    if (keyword) {
+      query.$or = [
+        { username: { $regex: keyword, $options: 'i' } },
+        { email: { $regex: keyword, $options: 'i' } }
+      ];
+    }
+    
+    if (role) {
+      query.role = role;
+    }
+    
+    if (creditLevel) {
+      query.creditLevel = creditLevel;
+    }
+    
+    const users = await User.find(query)
+      .select('-password')
+      .sort(sort)
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit));
+    
+    const total = await User.countDocuments(query);
+    
+    res.json({
+      users,
+      total,
+      page: parseInt(page),
+      limit: parseInt(limit),
+      totalPages: Math.ceil(total / limit)
+    });
+  } catch (error) {
+    res.status(500).json({ message: '服务器内部错误' });
+  }
+});
+
+router.get('/admin/users/stats', authenticateToken, authenticateAdmin, async (req, res) => {
+  try {
+    const total = await User.countDocuments();
+    const admins = await User.countDocuments({ role: 'admin' });
+    const normalUsers = await User.countDocuments({ role: 'user' });
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayCount = await User.countDocuments({ createdAt: { $gte: today } });
+    
+    const creditLevels = await User.aggregate([
+      { $group: { _id: '$creditLevel', count: { $sum: 1 } } },
+      { $sort: { count: -1 } }
+    ]);
+    
+    res.json({
+      total,
+      admins,
+      normalUsers,
+      todayCount,
+      creditLevels
+    });
   } catch (error) {
     res.status(500).json({ message: '服务器内部错误' });
   }
@@ -361,10 +420,12 @@ router.delete('/admin/users/:userId', authenticateToken, authenticateAdmin, asyn
       return res.status(400).json({ message: '不能删除管理员账户' });
     }
     
-    await user.remove();
+    // 使用findByIdAndDelete替代已废弃的remove()方法
+    await User.findByIdAndDelete(req.params.userId);
     res.json({ message: '用户已删除' });
   } catch (error) {
-    res.status(500).json({ message: '服务器内部错误' });
+    console.error('删除用户失败:', error);
+    res.status(500).json({ message: '服务器内部错误: ' + error.message });
   }
 });
 
