@@ -3,6 +3,7 @@ const router = express.Router();
 const Transaction = require('../models/Transaction');
 const Product = require('../models/Product');
 const jwt = require('jsonwebtoken');
+const { createTransactionReminder, scheduleReminder } = require('../utils/notificationHelper');
 
 const authenticateToken = (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
@@ -58,6 +59,8 @@ router.post('/', authenticateToken, async (req, res) => {
     
     await transaction.populate('product');
     await transaction.populate('seller', 'username');
+    
+    scheduleReminder(req.userId, '交易提醒', `您创建的交易订单：${transaction.product?.name || '未知商品'}，请及时关注交易进度`, 60, transaction._id);
     
     res.status(201).json(transaction);
   } catch (error) {
@@ -121,6 +124,15 @@ router.put('/:id', authenticateToken, async (req, res) => {
     await transaction.populate('product');
     await transaction.populate('buyer', 'username');
     await transaction.populate('seller', 'username');
+    
+    if (status === '待发货') {
+      await createTransactionReminder(transaction.seller.toString(), transaction._id, 'shipment_due');
+    } else if (status === '待收货') {
+      await createTransactionReminder(transaction.buyer.toString(), transaction._id, 'delivery_due');
+    } else if (status === '已完成') {
+      await createTransactionReminder(transaction.buyer.toString(), transaction._id, 'review_due');
+      await scheduleReminder(transaction.buyer.toString(), '评价提醒', '请记得对本次交易进行评价哦！', 1440, transaction._id);
+    }
     
     res.json(transaction);
   } catch (error) {
