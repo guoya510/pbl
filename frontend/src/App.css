@@ -258,7 +258,12 @@ body {
   border-radius: 10px;
   font-size: 1rem;
   transition: all var(--transition-normal);
-  background: var(--light-gray);
+  background: white;
+  color: #333;
+}
+
+.form-group input::placeholder {
+  color: #888;
 }
 
 .form-group input:focus {
