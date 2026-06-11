@@ -1,6 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { productApi, userApi, transactionApi, messageApi } from '../utils/api';
 
+const statusConfig = {
+  '待付款': { color: '#FF9800', label: '待付款' },
+  '待发货': { color: '#2196F3', label: '待发货' },
+  '待收货': { color: '#4CAF50', label: '待收货' },
+  '已完成': { color: '#9E9E9E', label: '已完成' },
+  '已取消': { color: '#F44336', label: '已取消' }
+};
+
 const Profile = ({ user, onUserUpdate }) => {
   const [userInfo, setUserInfo] = useState(user);
   const [myProducts, setMyProducts] = useState([]);
@@ -189,6 +197,51 @@ const Profile = ({ user, onUserUpdate }) => {
     }
   };
 
+  const handleConfirmPayment = async (transactionId) => {
+    if (window.confirm('确定要确认付款吗？')) {
+      try {
+        const result = await transactionApi.confirmPayment(transactionId);
+        setTransactions(transactions.map(t => 
+          t._id === transactionId ? result.transaction : t
+        ));
+        alert('付款确认成功');
+      } catch (err) {
+        console.error('确认付款失败:', err);
+        alert('确认付款失败，请重试');
+      }
+    }
+  };
+
+  const handleConfirmShipping = async (transactionId) => {
+    if (window.confirm('确定要确认发货吗？')) {
+      try {
+        const result = await transactionApi.confirmShipping(transactionId);
+        setTransactions(transactions.map(t => 
+          t._id === transactionId ? result.transaction : t
+        ));
+        alert('发货确认成功');
+      } catch (err) {
+        console.error('确认发货失败:', err);
+        alert('确认发货失败，请重试');
+      }
+    }
+  };
+
+  const handleConfirmReceipt = async (transactionId) => {
+    if (window.confirm('确定要确认收货吗？')) {
+      try {
+        const result = await transactionApi.confirmReceipt(transactionId);
+        setTransactions(transactions.map(t => 
+          t._id === transactionId ? result.transaction : t
+        ));
+        alert('收货确认成功，交易已完成');
+      } catch (err) {
+        console.error('确认收货失败:', err);
+        alert('确认收货失败，请重试');
+      }
+    }
+  };
+
   const getCreditLevelColor = (level) => {
     const colors = {
       'S': '#FFD700',
@@ -285,8 +338,8 @@ const Profile = ({ user, onUserUpdate }) => {
           onClick={() => setActiveTab('transactions')}
         >
           交易记录
-          {transactions.filter(t => t.status === '待处理').length > 0 && (
-            <span className="badge">{transactions.filter(t => t.status === '待处理').length}</span>
+          {transactions.filter(t => t.status === '待付款' || t.status === '待发货' || t.status === '待收货').length > 0 && (
+            <span className="badge">{transactions.filter(t => t.status === '待付款' || t.status === '待发货' || t.status === '待收货').length}</span>
           )}
         </button>
         <button 
@@ -548,27 +601,85 @@ const Profile = ({ user, onUserUpdate }) => {
           <h2>交易记录</h2>
           {transactions.length > 0 ? (
             <div className="transactions-list">
-              {transactions.map((transaction) => (
-                <div key={transaction._id} className="transaction-item">
-                  <div className="transaction-header">
-                    <span className="transaction-id">订单号: {transaction._id}</span>
-                    <span className={`transaction-status status-${transaction.status}`}>
-                      {transaction.status}
-                    </span>
+              {transactions.map((transaction) => {
+                const isBuyer = transaction.buyer?._id === user._id;
+                const isSeller = transaction.seller?._id === user._id;
+                const config = statusConfig[transaction.status];
+                
+                return (
+                  <div key={transaction._id} className="transaction-item">
+                    <div className="transaction-header">
+                      <span className="transaction-id">订单号: {transaction._id}</span>
+                      <span 
+                        className="transaction-status"
+                        style={{ color: config?.color }}
+                      >
+                        {config?.label}
+                      </span>
+                    </div>
+                    <div className="transaction-info">
+                      <div className="transaction-product">
+                        <a href={`/product/${transaction.product?._id}`}>
+                          {transaction.product?.name || '商品信息已删除'}
+                        </a>
+                      </div>
+                      <div className="transaction-amount">
+                        金额: ¥{transaction.price}
+                      </div>
+                      <div className="transaction-participants">
+                        <span>买家: {transaction.buyer?.username || '未知'}</span>
+                        <span>卖家: {transaction.seller?.username || '未知'}</span>
+                      </div>
+                      <div className="transaction-methods">
+                        {transaction.paymentMethod === 'online' && (
+                          <span className="method-tag">在线支付</span>
+                        )}
+                        {transaction.paymentMethod === 'offline' && (
+                          <span className="method-tag">线下支付</span>
+                        )}
+                        {transaction.deliveryMethod === 'face_to_face' && (
+                          <span className="method-tag">当面交易</span>
+                        )}
+                        {transaction.deliveryMethod === 'express' && (
+                          <span className="method-tag">快递配送</span>
+                        )}
+                      </div>
+                      <div className="transaction-time">
+                        时间: {new Date(transaction.createdAt).toLocaleString()}
+                      </div>
+                    </div>
+                    <div className="transaction-actions">
+                      {isBuyer && transaction.status === '待付款' && (
+                        <button 
+                          className="action-btn primary"
+                          onClick={() => handleConfirmPayment(transaction._id)}
+                        >
+                          确认付款
+                        </button>
+                      )}
+                      {isSeller && transaction.status === '待发货' && (
+                        <button 
+                          className="action-btn primary"
+                          onClick={() => handleConfirmShipping(transaction._id)}
+                        >
+                          确认发货
+                        </button>
+                      )}
+                      {isBuyer && transaction.status === '待收货' && (
+                        <button 
+                          className="action-btn primary"
+                          onClick={() => handleConfirmReceipt(transaction._id)}
+                        >
+                          确认收货
+                        </button>
+                      )}
+                      {transaction.status === '已完成' && (
+                        <span className="action-btn disabled">交易已完成</span>
+                      )}
+                    </div>
                   </div>
-                  <div className="transaction-info">
-                    <div className="transaction-product">
-                      商品: {transaction.product?.name || '商品信息已删除'}
-                    </div>
-                    <div className="transaction-amount">
-                      金额: ¥{transaction.price}
-                    </div>
-                    <div className="transaction-time">
-                      时间: {new Date(transaction.createdAt).toLocaleString()}
-                    </div>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="empty-state">

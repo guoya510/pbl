@@ -51,7 +51,7 @@ router.post('/', authenticateToken, async (req, res) => {
       paymentMethod,
       deliveryMethod,
       deliveryAddress,
-      status: '待处理'
+      status: '待付款'
     });
     
     await transaction.save();
@@ -137,6 +137,100 @@ router.put('/:id', authenticateToken, async (req, res) => {
     }
     
     res.json(transaction);
+  } catch (error) {
+    res.status(500).json({ message: '服务器内部错误' });
+  }
+});
+
+router.put('/:id/confirm-payment', authenticateToken, async (req, res) => {
+  try {
+    const transaction = await Transaction.findById(req.params.id);
+    
+    if (!transaction) {
+      return res.status(404).json({ message: '交易不存在' });
+    }
+    
+    if (transaction.buyer.toString() !== req.userId) {
+      return res.status(403).json({ message: '无权操作此交易' });
+    }
+    
+    if (transaction.status !== '待付款') {
+      return res.status(400).json({ message: '当前交易状态不允许确认付款' });
+    }
+    
+    transaction.status = '待发货';
+    await transaction.save();
+    
+    await transaction.populate('product');
+    await transaction.populate('buyer', 'username');
+    await transaction.populate('seller', 'username');
+    
+    await scheduleReminder(transaction.seller.toString(), '发货提醒', `买家已确认付款，请及时发货：${transaction.product?.name || '未知商品'}`, 60, transaction._id);
+    
+    res.json({ message: '付款确认成功', transaction });
+  } catch (error) {
+    res.status(500).json({ message: '服务器内部错误' });
+  }
+});
+
+router.put('/:id/confirm-shipping', authenticateToken, async (req, res) => {
+  try {
+    const transaction = await Transaction.findById(req.params.id);
+    
+    if (!transaction) {
+      return res.status(404).json({ message: '交易不存在' });
+    }
+    
+    if (transaction.seller.toString() !== req.userId) {
+      return res.status(403).json({ message: '无权操作此交易' });
+    }
+    
+    if (transaction.status !== '待发货') {
+      return res.status(400).json({ message: '当前交易状态不允许确认发货' });
+    }
+    
+    transaction.status = '待收货';
+    await transaction.save();
+    
+    await transaction.populate('product');
+    await transaction.populate('buyer', 'username');
+    await transaction.populate('seller', 'username');
+    
+    await scheduleReminder(transaction.buyer.toString(), '收货提醒', `卖家已发货，请留意物流信息：${transaction.product?.name || '未知商品'}`, 60, transaction._id);
+    
+    res.json({ message: '发货确认成功', transaction });
+  } catch (error) {
+    res.status(500).json({ message: '服务器内部错误' });
+  }
+});
+
+router.put('/:id/confirm-receipt', authenticateToken, async (req, res) => {
+  try {
+    const transaction = await Transaction.findById(req.params.id);
+    
+    if (!transaction) {
+      return res.status(404).json({ message: '交易不存在' });
+    }
+    
+    if (transaction.buyer.toString() !== req.userId) {
+      return res.status(403).json({ message: '无权操作此交易' });
+    }
+    
+    if (transaction.status !== '待收货') {
+      return res.status(400).json({ message: '当前交易状态不允许确认收货' });
+    }
+    
+    transaction.status = '已完成';
+    await transaction.save();
+    
+    await transaction.populate('product');
+    await transaction.populate('buyer', 'username');
+    await transaction.populate('seller', 'username');
+    
+    await scheduleReminder(transaction.buyer.toString(), '评价提醒', '请记得对本次交易进行评价哦！', 1440, transaction._id);
+    await scheduleReminder(transaction.seller.toString(), '交易完成', `交易已完成：${transaction.product?.name || '未知商品'}`, 60, transaction._id);
+    
+    res.json({ message: '收货确认成功，交易已完成', transaction });
   } catch (error) {
     res.status(500).json({ message: '服务器内部错误' });
   }

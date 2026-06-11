@@ -120,7 +120,13 @@ export const transactionApi = {
   // 获取交易详情
   getTransaction: (id) => api.get(`/transactions/${id}`),
   // 更新交易状态
-  updateTransaction: (id, data) => api.put(`/transactions/${id}`, data)
+  updateTransaction: (id, data) => api.put(`/transactions/${id}`, data),
+  // 确认付款
+  confirmPayment: (id) => api.put(`/transactions/${id}/confirm-payment`),
+  // 确认发货
+  confirmShipping: (id) => api.put(`/transactions/${id}/confirm-shipping`),
+  // 确认收货
+  confirmReceipt: (id) => api.put(`/transactions/${id}/confirm-receipt`)
 };
 
 // 消息相关API

@@ -40,8 +40,8 @@ const TransactionSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['待处理', '已完成', '已取消'],
-    default: '待处理'
+    enum: ['待付款', '待发货', '待收货', '已完成', '已取消'],
+    default: '待付款'
   },
   createdAt: {
     type: Date,
