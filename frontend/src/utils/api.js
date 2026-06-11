@@ -154,7 +154,13 @@ export const notificationApi = {
   // 标记所有通知为已读
   markAllAsRead: () => api.put('/notifications/read'),
   // 删除通知
-  deleteNotification: (id) => api.delete(`/notifications/${id}`)
+  deleteNotification: (id) => api.delete(`/notifications/${id}`),
+  // 管理员发布系统公告
+  broadcast: (data) => api.post('/notifications/admin/broadcast', data),
+  // 管理员发送通知给指定用户
+  sendToUser: (data) => api.post('/notifications/admin/send-to-user', data),
+  // 管理员获取系统通知列表
+  getAdminNotifications: (params) => api.get('/notifications/admin/list', { params })
 };
 
 // 管理员相关API
