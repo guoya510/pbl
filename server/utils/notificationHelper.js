@@ -102,11 +102,79 @@ const scheduleReminder = async (userId, title, content, delayMinutes, relatedId 
   }, delayMinutes * 60 * 1000);
 };
 
+const createProductExpiryReminder = async (userId, product) => {
+  const title = '商品发布到期提醒';
+  const content = `您发布的商品「${product.name}」即将到期，请及时处理或重新发布`;
+  return await createReminderNotification(userId, title, content, product._id);
+};
+
+const createFavoritePriceReminder = async (userId, product, oldPrice, newPrice) => {
+  const discount = Math.round((1 - newPrice / oldPrice) * 100);
+  const title = '收藏商品降价提醒';
+  const content = `您收藏的商品「${product.name}」降价了！原价¥${oldPrice}，现价¥${newPrice}，优惠${discount}%`;
+  return await createReminderNotification(userId, title, content, product._id);
+};
+
+const createCustomReminder = async (userId, title, content, relatedId = null) => {
+  return await createReminderNotification(userId, title, content, relatedId);
+};
+
+const scheduleDailyReminder = async (userId, title, content, hour = 9, relatedId = null) => {
+  const now = new Date();
+  const target = new Date();
+  target.setHours(hour, 0, 0, 0);
+  
+  if (now > target) {
+    target.setDate(target.getDate() + 1);
+  }
+  
+  const delayMinutes = Math.floor((target - now) / 60000);
+  
+  setTimeout(async () => {
+    await createReminderNotification(userId, title, content, relatedId);
+    scheduleDailyReminder(userId, title, content, hour, relatedId);
+  }, delayMinutes * 60 * 1000);
+};
+
+const scheduleWeeklyReminder = async (userId, title, content, dayOfWeek = 1, hour = 9, relatedId = null) => {
+  const now = new Date();
+  const target = new Date();
+  target.setHours(hour, 0, 0, 0);
+  
+  const daysUntil = (dayOfWeek - now.getDay() + 7) % 7;
+  if (daysUntil === 0 && now > target) {
+    target.setDate(target.getDate() + 7);
+  } else {
+    target.setDate(target.getDate() + daysUntil);
+  }
+  
+  const delayMinutes = Math.floor((target - now) / 60000);
+  
+  setTimeout(async () => {
+    await createReminderNotification(userId, title, content, relatedId);
+    scheduleWeeklyReminder(userId, title, content, dayOfWeek, hour, relatedId);
+  }, delayMinutes * 60 * 1000);
+};
+
+const cancelScheduledReminder = (timerId) => {
+  if (timerId) {
+    clearTimeout(timerId);
+    return true;
+  }
+  return false;
+};
+
 module.exports = {
   createNotification,
   createTransactionNotification,
   createSystemNotification,
   createReminderNotification,
   createTransactionReminder,
-  scheduleReminder
+  scheduleReminder,
+  createProductExpiryReminder,
+  createFavoritePriceReminder,
+  createCustomReminder,
+  scheduleDailyReminder,
+  scheduleWeeklyReminder,
+  cancelScheduledReminder
 };

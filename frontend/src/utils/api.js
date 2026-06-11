@@ -137,6 +137,26 @@ export const messageApi = {
   deleteMessage: (id) => api.delete(`/messages/${id}`)
 };
 
+// 提醒相关API
+export const reminderApi = {
+  // 设置定时提醒
+  schedule: (data) => api.post('/reminders/schedule', data),
+  // 设置每日提醒
+  daily: (data) => api.post('/reminders/daily', data),
+  // 设置每周提醒
+  weekly: (data) => api.post('/reminders/weekly', data),
+  // 创建自定义提醒
+  custom: (data) => api.post('/reminders/custom', data),
+  // 设置商品到期提醒
+  productExpiry: (data) => api.post('/reminders/product-expiry', data),
+  // 设置收藏商品降价提醒
+  favoritePrice: (data) => api.post('/reminders/favorite-price', data),
+  // 获取提醒设置
+  getSettings: () => api.get('/reminders/settings'),
+  // 更新提醒设置
+  updateSettings: (data) => api.put('/reminders/settings', data)
+};
+
 // 通知相关API
 export const notificationApi = {
   // 获取通知列表
