@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import ProductForm from '../components/ProductForm';
 
 const ProductFormPage = ({ onProductCreated, onProductUpdated }) => {
   const [showForm, setShowForm] = useState(true);
+  const navigate = useNavigate();
 
   const handleSubmit = (product) => {
     if (product._id) {
@@ -16,13 +18,13 @@ const ProductFormPage = ({ onProductCreated, onProductUpdated }) => {
         onProductCreated(product);
       }
     }
-    // 可以选择是否关闭表单
-    // setShowForm(false);
+    // 发布成功后跳转到首页
+    navigate('/');
   };
 
   const handleCancel = () => {
     setShowForm(false);
-    // 可以导航回上一页
+    // 导航回上一页
     window.history.back();
   };
 
