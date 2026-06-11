@@ -107,4 +107,103 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+const User = require('../models/User');
+
+router.post('/admin/broadcast', authenticateToken, async (req, res) => {
+  try {
+    const { title, content } = req.body;
+    
+    if (!title || !content) {
+      return res.status(400).json({ message: '请提供标题和内容' });
+    }
+    
+    const currentUser = await User.findById(req.userId);
+    if (!currentUser || currentUser.role !== 'admin') {
+      return res.status(403).json({ message: '无权限执行此操作' });
+    }
+    
+    const users = await User.find({}, '_id');
+    
+    const notifications = users.map(user => ({
+      userId: user._id,
+      type: 'system',
+      title,
+      content,
+      read: false,
+      createdAt: Date.now()
+    }));
+    
+    await Notification.insertMany(notifications);
+    
+    res.json({ 
+      message: '系统公告发布成功',
+      count: notifications.length 
+    });
+  } catch (error) {
+    res.status(500).json({ message: '服务器内部错误' });
+  }
+});
+
+router.post('/admin/send-to-user', authenticateToken, async (req, res) => {
+  try {
+    const { userId, title, content } = req.body;
+    
+    if (!userId || !title || !content) {
+      return res.status(400).json({ message: '请提供用户ID、标题和内容' });
+    }
+    
+    const currentUser = await User.findById(req.userId);
+    if (!currentUser || currentUser.role !== 'admin') {
+      return res.status(403).json({ message: '无权限执行此操作' });
+    }
+    
+    const targetUser = await User.findById(userId);
+    if (!targetUser) {
+      return res.status(404).json({ message: '用户不存在' });
+    }
+    
+    const notification = new Notification({
+      userId,
+      type: 'system',
+      title,
+      content,
+      read: false
+    });
+    
+    await notification.save();
+    
+    res.json({ message: '通知发送成功', notification });
+  } catch (error) {
+    res.status(500).json({ message: '服务器内部错误' });
+  }
+});
+
+router.get('/admin/list', authenticateToken, async (req, res) => {
+  try {
+    const currentUser = await User.findById(req.userId);
+    if (!currentUser || currentUser.role !== 'admin') {
+      return res.status(403).json({ message: '无权限执行此操作' });
+    }
+    
+    const { page = 1, limit = 20 } = req.query;
+    
+    const notifications = await Notification.find({ type: 'system' })
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(parseInt(limit));
+    
+    const total = await Notification.countDocuments({ type: 'system' });
+    
+    res.json({
+      notifications,
+      total,
+      page: parseInt(page),
+      limit: parseInt(limit),
+      totalPages: Math.ceil(total / limit)
+    });
+  } catch (error) {
+    res.status(500).json({ message: '服务器内部错误' });
+  }
+});
+
 module.exports = router;
