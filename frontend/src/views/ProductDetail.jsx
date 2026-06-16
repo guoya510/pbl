@@ -12,6 +12,8 @@ const ProductDetail = () => {
   const [favoriteLoading, setFavoriteLoading] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [following, setFollowing] = useState([]);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [showLightbox, setShowLightbox] = useState(false);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
@@ -157,13 +159,51 @@ const ProductDetail = () => {
   return (
     <div className="product-detail-container">
       <div className="product-detail">
-        <div className="product-images">
-          {product.images && product.images.length > 0 ? (
-            product.images.map((image, index) => (
-              <img key={index} src={image} alt={`${product.name} ${index + 1}`} />
-            ))
-          ) : (
-            <div className="no-image">暂无图片</div>
+        <div className="product-images-container">
+          <div className="main-image-wrapper">
+            {product.images && product.images.length > 0 ? (
+              <>
+                <button 
+                  className="carousel-prev" 
+                  onClick={() => setCurrentImageIndex(prev => prev > 0 ? prev - 1 : product.images.length - 1)}
+                >
+                  &#8249;
+                </button>
+                <img 
+                  src={product.images[currentImageIndex]} 
+                  alt={`${product.name} ${currentImageIndex + 1}`}
+                  className="main-image"
+                  onClick={() => setShowLightbox(true)}
+                />
+                <button 
+                  className="carousel-next" 
+                  onClick={() => setCurrentImageIndex(prev => prev < product.images.length - 1 ? prev + 1 : 0)}
+                >
+                  &#8250;
+                </button>
+              </>
+            ) : (
+              <div className="no-image">暂无图片</div>
+            )}
+            {product.images && product.images.length > 0 && (
+              <div className="image-counter">
+                {currentImageIndex + 1} / {product.images.length}
+              </div>
+            )}
+          </div>
+          
+          {product.images && product.images.length > 1 && (
+            <div className="thumbnail-list">
+              {product.images.map((image, index) => (
+                <div 
+                  key={index} 
+                  className={`thumbnail-item ${index === currentImageIndex ? 'active' : ''}`}
+                  onClick={() => setCurrentImageIndex(index)}
+                >
+                  <img src={image} alt={`${product.name} ${index + 1}`} />
+                </div>
+              ))}
+            </div>
           )}
         </div>
         
@@ -226,7 +266,7 @@ const ProductDetail = () => {
                 立即购买
               </a>
             )}
-            {user && user._id === product.seller?._id && (
+            {user && user._id === product.seller?._id && product.status === '在售' && (
               <>
                 <a href={`/product/form?id=${product._id}`} className="edit-button">
                   编辑商品
@@ -244,6 +284,39 @@ const ProductDetail = () => {
         <h2>商品描述</h2>
         <p>{product.description}</p>
       </div>
+      
+      {showLightbox && product.images && (
+        <div className="lightbox-overlay" onClick={() => setShowLightbox(false)}>
+          <button className="lightbox-close" onClick={() => setShowLightbox(false)}>×</button>
+          <button 
+            className="lightbox-prev" 
+            onClick={(e) => {
+              e.stopPropagation();
+              setCurrentImageIndex(prev => prev > 0 ? prev - 1 : product.images.length - 1);
+            }}
+          >
+            &#8249;
+          </button>
+          <img 
+            src={product.images[currentImageIndex]} 
+            alt={`${product.name} ${currentImageIndex + 1}`}
+            className="lightbox-image"
+            onClick={(e) => e.stopPropagation()}
+          />
+          <button 
+            className="lightbox-next" 
+            onClick={(e) => {
+              e.stopPropagation();
+              setCurrentImageIndex(prev => prev < product.images.length - 1 ? prev + 1 : 0);
+            }}
+          >
+            &#8250;
+          </button>
+          <div className="lightbox-counter">
+            {currentImageIndex + 1} / {product.images.length}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

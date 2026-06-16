@@ -573,11 +573,13 @@ const Profile = ({ user, onUserUpdate }) => {
                         {product.status === '在售' ? '在售' : '已售出'}
                       </span>
                     </div>
-                    <div className="product-actions">
-                      <a href={`/product/form?id=${product._id}`} className="action-button edit">
-                        编辑
-                      </a>
-                    </div>
+                    {product.status === '在售' && (
+                      <div className="product-actions">
+                        <a href={`/product/form?id=${product._id}`} className="action-button edit">
+                          编辑
+                        </a>
+                      </div>
+                    )}
                   </div>
                 </a>
               ))}

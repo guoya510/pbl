@@ -168,7 +168,7 @@ router.put('/profile', authenticateToken, async (req, res) => {
 
 router.put('/password', authenticateToken, async (req, res) => {
   try {
-    const { oldPassword, newPassword } = req.body;
+    const { currentPassword, newPassword } = req.body;
     
     const user = await User.findById(req.userId);
     
@@ -176,7 +176,7 @@ router.put('/password', authenticateToken, async (req, res) => {
       return res.status(404).json({ message: '用户不存在' });
     }
     
-    const isValidPassword = await bcrypt.compare(oldPassword, user.password);
+    const isValidPassword = await bcrypt.compare(currentPassword, user.password);
     
     if (!isValidPassword) {
       return res.status(401).json({ message: '旧密码错误' });

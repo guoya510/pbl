@@ -6,7 +6,6 @@ import ProductFormPage from './views/ProductFormPage';
 import ProductDetail from './views/ProductDetail';
 import Favorites from './views/Favorites';
 import Profile from './views/Profile';
-import Notifications from './views/Notifications';
 import Chat from './views/Chat';
 import CreateTransaction from './views/CreateTransaction';
 import Footer from './components/Footer';
@@ -61,7 +60,6 @@ function App() {
                 <a href="/">首页</a>
                 <a href="/product/form">发布商品</a>
                 <a href="/favorites">我的收藏</a>
-                <a href="/notifications">通知</a>
                 <a href="/chat">消息</a>
                 <a href="/profile">个人中心</a>
                 {isAdmin && <a href="/admin/dashboard" className="admin-link">管理后台</a>}
@@ -105,10 +103,7 @@ function App() {
               path="/favorites" 
               element={user ? <Favorites /> : <Navigate to="/auth" />} 
             />
-            <Route 
-              path="/notifications" 
-              element={user ? <Notifications /> : <Navigate to="/auth" />} 
-            />
+            
             <Route 
               path="/chat" 
               element={user ? <Chat /> : <Navigate to="/auth" />} 

@@ -3,7 +3,6 @@ const router = express.Router();
 const Transaction = require('../models/Transaction');
 const Product = require('../models/Product');
 const jwt = require('jsonwebtoken');
-const { createTransactionReminder, scheduleReminder } = require('../utils/notificationHelper');
 
 const authenticateToken = (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
@@ -61,8 +60,6 @@ router.post('/', authenticateToken, async (req, res) => {
     
     await transaction.populate('product');
     await transaction.populate('seller', 'username');
-    
-    scheduleReminder(req.userId, '交易提醒', `您创建的交易订单：${transaction.product?.name || '未知商品'}，请及时关注交易进度`, 60, transaction._id);
     
     res.status(201).json(transaction);
   } catch (error) {
@@ -127,14 +124,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
     await transaction.populate('buyer', 'username');
     await transaction.populate('seller', 'username');
     
-    if (status === '待发货') {
-      await createTransactionReminder(transaction.seller.toString(), transaction._id, 'shipment_due');
-    } else if (status === '待收货') {
-      await createTransactionReminder(transaction.buyer.toString(), transaction._id, 'delivery_due');
-    } else if (status === '已完成') {
-      await createTransactionReminder(transaction.buyer.toString(), transaction._id, 'review_due');
-      await scheduleReminder(transaction.buyer.toString(), '评价提醒', '请记得对本次交易进行评价哦！', 1440, transaction._id);
-    }
+    
     
     res.json(transaction);
   } catch (error) {
@@ -165,8 +155,6 @@ router.put('/:id/confirm-payment', authenticateToken, async (req, res) => {
     await transaction.populate('buyer', 'username');
     await transaction.populate('seller', 'username');
     
-    await scheduleReminder(transaction.seller.toString(), '发货提醒', `买家已确认付款，请及时发货：${transaction.product?.name || '未知商品'}`, 60, transaction._id);
-    
     res.json({ message: '付款确认成功', transaction });
   } catch (error) {
     res.status(500).json({ message: '服务器内部错误' });
@@ -196,8 +184,6 @@ router.put('/:id/confirm-shipping', authenticateToken, async (req, res) => {
     await transaction.populate('buyer', 'username');
     await transaction.populate('seller', 'username');
     
-    await scheduleReminder(transaction.buyer.toString(), '收货提醒', `卖家已发货，请留意物流信息：${transaction.product?.name || '未知商品'}`, 60, transaction._id);
-    
     res.json({ message: '发货确认成功', transaction });
   } catch (error) {
     res.status(500).json({ message: '服务器内部错误' });
@@ -226,9 +212,6 @@ router.put('/:id/confirm-receipt', authenticateToken, async (req, res) => {
     await transaction.populate('product');
     await transaction.populate('buyer', 'username');
     await transaction.populate('seller', 'username');
-    
-    await scheduleReminder(transaction.buyer.toString(), '评价提醒', '请记得对本次交易进行评价哦！', 1440, transaction._id);
-    await scheduleReminder(transaction.seller.toString(), '交易完成', `交易已完成：${transaction.product?.name || '未知商品'}`, 60, transaction._id);
     
     res.json({ message: '收货确认成功，交易已完成', transaction });
   } catch (error) {
