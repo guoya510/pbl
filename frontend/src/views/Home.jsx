@@ -17,11 +17,11 @@ const Home = () => {
   const [showFilters, setShowFilters] = useState(false);
 
   const campuses = [
-    { value: '', label: 'All Campuses' },
-    { value: 'East', label: 'East Campus' },
-    { value: 'West', label: 'West Campus' },
-    { value: 'South', label: 'South Campus' },
-    { value: 'North', label: 'North Campus' }
+    { value: '', label: '全部' },
+    { value: '东区', label: '东区' },
+    { value: '西区', label: '西区' },
+    { value: '南区', label: '南区' },
+    { value: '北区', label: '北区' }
   ];
 
   const buildings = {
@@ -56,7 +56,7 @@ const Home = () => {
 
   useEffect(() => {
     fetchProducts();
-  }, [searchParams]);
+  }, []);
 
   const fetchProducts = async () => {
     try {
@@ -75,6 +75,7 @@ const Home = () => {
 
   const handleSearch = (e) => {
     e.preventDefault();
+    console.log('搜索参数:', searchParams);
     fetchProducts();
   };
 
@@ -85,6 +86,16 @@ const Home = () => {
       [name]: value,
       ...(name === 'campus' ? { building: '' } : {})
     }));
+  };
+
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setSearchParams(prev => ({
+      ...prev,
+      [name]: value,
+      ...(name === 'campus' ? { building: '' } : {})
+    }));
+    fetchProducts();
   };
 
   const handleReset = () => {
@@ -193,26 +204,14 @@ const Home = () => {
                     <select
                       name="campus"
                       value={searchParams.campus}
-                      onChange={handleInputChange}
+                      onChange={handleFilterChange}
                       className="filter-select"
                     >
-                      {campuses.map(campus => (
-                        <option key={campus.value} value={campus.value}>{campus.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label>楼栋</label>
-                    <select
-                      name="building"
-                      value={searchParams.building}
-                      onChange={handleInputChange}
-                      className="filter-select"
-                      disabled={!searchParams.campus}
-                    >
-                      {(buildings[searchParams.campus] || buildings['']).map(building => (
-                        <option key={building.value} value={building.value}>{building.label}</option>
-                      ))}
+                      <option value="">全部</option>
+                      <option value="东区">东区</option>
+                      <option value="西区">西区</option>
+                      <option value="南区">南区</option>
+                      <option value="北区">北区</option>
                     </select>
                   </div>
                 </div>
@@ -220,7 +219,7 @@ const Home = () => {
 
               <div className="filter-section">
                 <h3>价格区间</h3>
-                <div className="filter-row price-range">
+                <div className="filter-row price-range-inline">
                   <div className="form-group">
                     <label>最低价格</label>
                     <input

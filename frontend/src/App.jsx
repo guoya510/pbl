@@ -14,6 +14,7 @@ import ProductReview from './views/ProductReview';
 import ProductManagement from './views/ProductManagement';
 import UserManagement from './views/UserManagement';
 import AdminRegister from './components/AdminRegister';
+import { ToastContainer, ConfirmModalContainer } from './components/Toast';
 import './App.css';
 
 function App() {
@@ -136,6 +137,9 @@ function App() {
         </div>
         
         <Footer />
+        
+        <ToastContainer />
+        <ConfirmModalContainer />
       </div>
     </Router>
   );

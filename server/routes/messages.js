@@ -96,6 +96,19 @@ router.put('/:id/read', authenticateToken, async (req, res) => {
   }
 });
 
+router.put('/read/all', authenticateToken, async (req, res) => {
+  try {
+    await Message.updateMany(
+      { receiver: req.userId, read: false },
+      { read: true }
+    );
+    
+    res.json({ message: '所有消息已标记为已读' });
+  } catch (error) {
+    res.status(500).json({ message: '服务器内部错误' });
+  }
+});
+
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const message = await Message.findById(req.params.id);

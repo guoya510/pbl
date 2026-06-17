@@ -2,6 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const mongoose = require('mongoose');
+const multer = require('multer');
+const path = require('path');
 
 // 加载环境变量
 dotenv.config();
@@ -13,6 +15,40 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// 配置文件上传
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/');
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + '-' + Math.round(Math.random() * 1E9) + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ 
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB限制
+  fileFilter: function (req, file, cb) {
+    const fileTypes = /jpeg|jpg|png|gif/;
+    const extname = fileTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = fileTypes.test(file.mimetype);
+    if (extname && mimetype) {
+      return cb(null, true);
+    } else {
+      cb(new Error('只允许上传图片文件'));
+    }
+  }
+});
+
+// 确保uploads目录存在
+const fs = require('fs');
+if (!fs.existsSync('uploads')) {
+  fs.mkdirSync('uploads', { recursive: true });
+}
+
+// 静态文件服务
+app.use('/uploads', express.static('uploads'));
 
 // 数据库连接
 mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/campus-second-hand', {
@@ -31,6 +67,19 @@ app.use('/api/favorites', require('./routes/favorites'));
 
 
 app.use('/api/stats', require('./routes/stats'));
+
+// 图片上传路由
+app.post('/api/upload', upload.array('images', 5), (req, res) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ message: '请选择要上传的图片' });
+    }
+    const imageUrls = req.files.map(file => `/uploads/${file.filename}`);
+    res.json({ images: imageUrls });
+  } catch (error) {
+    res.status(500).json({ message: '上传失败: ' + error.message });
+  }
+});
 
 // 健康检查
 app.get('/health', (req, res) => {

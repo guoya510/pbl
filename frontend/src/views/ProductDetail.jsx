@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Navigate } from 'react-router-dom';
-import { productApi, favoriteApi, userApi } from '../utils/api';
+import { useParams, useNavigate } from 'react-router-dom';
+import { productApi, favoriteApi } from '../utils/api';
+import { showToast, showConfirm } from '../components/Toast';
 
 const ProductDetail = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [user, setUser] = useState(null);
   const [isFavorited, setIsFavorited] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
-  const [isFollowing, setIsFollowing] = useState(false);
-  const [following, setFollowing] = useState([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showLightbox, setShowLightbox] = useState(false);
 
@@ -20,13 +20,8 @@ const ProductDetail = () => {
     if (storedUser) {
       const userData = JSON.parse(storedUser);
       setUser(userData);
-      fetchFollowing();
     }
   }, []);
-
-  useEffect(() => {
-    checkIfFollowing();
-  }, [following, product]);
 
   useEffect(() => {
     if (id) {
@@ -51,7 +46,7 @@ const ProductDetail = () => {
 
   const handleFavorite = async () => {
     if (!user) {
-      alert('请先登录');
+      showToast('请先登录', 'warning');
       return;
     }
 
@@ -60,14 +55,14 @@ const ProductDetail = () => {
       if (isFavorited) {
         await favoriteApi.removeFavorite(id);
         setIsFavorited(false);
-        alert('取消收藏成功');
+        showToast('取消收藏成功', 'success');
       } else {
         await favoriteApi.addFavorite(id);
         setIsFavorited(true);
-        alert('收藏成功');
+        showToast('收藏成功', 'success');
       }
     } catch (err) {
-      alert('操作失败，请重试');
+      showToast('操作失败，请重试', 'error');
     } finally {
       setFavoriteLoading(false);
     }
@@ -86,62 +81,33 @@ const ProductDetail = () => {
   };
 
   const handleDelete = async () => {
-    if (window.confirm('确定要删除这个商品吗？')) {
-      try {
-        await productApi.deleteProduct(id);
-        alert('商品已删除');
-        window.location.href = '/';
-      } catch (err) {
-        alert('删除商品失败');
-      }
-    }
-  };
-
-  const fetchFollowing = async () => {
+    const confirmed = await showConfirm('删除商品', '确定要删除这个商品吗？');
+    if (!confirmed) return;
+    
     try {
-      const data = await userApi.getFollowing();
-      setFollowing(data);
+      await productApi.deleteProduct(id);
+      showToast('商品已删除', 'success');
+      window.location.href = '/';
     } catch (err) {
-      console.error('获取关注列表失败:', err);
+      showToast('删除商品失败', 'error');
     }
   };
 
-  const checkIfFollowing = () => {
-    if (user && product && product.seller) {
-      const isFollow = following.some(item => item._id === product.seller._id);
-      setIsFollowing(isFollow);
-    }
-  };
-
-  const handleFollow = async () => {
+  const handleContactSeller = () => {
     if (!user) {
-      alert('请先登录');
-      window.location.href = '/auth';
+      showToast('请先登录', 'warning');
+      navigate('/auth');
       return;
     }
 
     if (user._id === product.seller._id) {
-      alert('不能关注自己');
+      showToast('不能联系自己', 'warning');
       return;
     }
 
-    try {
-      if (isFollowing) {
-        await userApi.unfollowUser(product.seller._id);
-        setIsFollowing(false);
-        // 更新关注列表
-        setFollowing(prev => prev.filter(item => item._id !== product.seller._id));
-        alert('取消关注成功');
-      } else {
-        await userApi.followUser(product.seller._id);
-        setIsFollowing(true);
-        // 更新关注列表
-        setFollowing(prev => [...prev, product.seller]);
-        alert('关注成功');
-      }
-    } catch (err) {
-      alert('操作失败，请重试');
-    }
+    localStorage.setItem('chatTargetUserId', product.seller._id);
+    localStorage.setItem('chatTargetUsername', product.seller.username);
+    navigate('/chat');
   };
 
   if (loading) {
@@ -159,80 +125,84 @@ const ProductDetail = () => {
   return (
     <div className="product-detail-container">
       <div className="product-detail">
-        <div className="product-images-container">
-          <div className="main-image-wrapper">
-            {product.images && product.images.length > 0 ? (
-              <>
-                <button 
-                  className="carousel-prev" 
-                  onClick={() => setCurrentImageIndex(prev => prev > 0 ? prev - 1 : product.images.length - 1)}
-                >
-                  &#8249;
-                </button>
-                <img 
-                  src={product.images[currentImageIndex]} 
-                  alt={`${product.name} ${currentImageIndex + 1}`}
-                  className="main-image"
-                  onClick={() => setShowLightbox(true)}
-                />
-                <button 
-                  className="carousel-next" 
-                  onClick={() => setCurrentImageIndex(prev => prev < product.images.length - 1 ? prev + 1 : 0)}
-                >
-                  &#8250;
-                </button>
-              </>
-            ) : (
-              <div className="no-image">暂无图片</div>
-            )}
-            {product.images && product.images.length > 0 && (
-              <div className="image-counter">
-                {currentImageIndex + 1} / {product.images.length}
+        <div className="product-top-section">
+          <div className="product-images-container">
+            <div className="main-image-wrapper">
+              {product.images && product.images.length > 0 ? (
+                <>
+                  <button 
+                    className="carousel-prev" 
+                    onClick={() => setCurrentImageIndex(prev => prev > 0 ? prev - 1 : product.images.length - 1)}
+                  >
+                    &#8249;
+                  </button>
+                  <img 
+                    src={product.images[currentImageIndex]} 
+                    alt={`${product.name} ${currentImageIndex + 1}`}
+                    className="main-image"
+                    onClick={() => setShowLightbox(true)}
+                  />
+                  <button 
+                    className="carousel-next" 
+                    onClick={() => setCurrentImageIndex(prev => prev < product.images.length - 1 ? prev + 1 : 0)}
+                  >
+                    &#8250;
+                  </button>
+                </>
+              ) : (
+                <div className="no-image">暂无图片</div>
+              )}
+              {product.images && product.images.length > 0 && (
+                <div className="image-counter">
+                  {currentImageIndex + 1} / {product.images.length}
+                </div>
+              )}
+            </div>
+            
+            {product.images && product.images.length > 1 && (
+              <div className="thumbnail-list">
+                {product.images.map((image, index) => (
+                  <div 
+                    key={index} 
+                    className={`thumbnail-item ${index === currentImageIndex ? 'active' : ''}`}
+                    onClick={() => setCurrentImageIndex(index)}
+                  >
+                    <img src={image} alt={`${product.name} ${index + 1}`} />
+                  </div>
+                ))}
               </div>
             )}
           </div>
-          
-          {product.images && product.images.length > 1 && (
-            <div className="thumbnail-list">
-              {product.images.map((image, index) => (
-                <div 
-                  key={index} 
-                  className={`thumbnail-item ${index === currentImageIndex ? 'active' : ''}`}
-                  onClick={() => setCurrentImageIndex(index)}
-                >
-                  <img src={image} alt={`${product.name} ${index + 1}`} />
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        
-        <div className="product-info">
-          <h1 className="product-name">{product.name}</h1>
-          <p className="product-price">¥{product.price}</p>
-          <div className="product-meta">
-            <div className="meta-item">
-              <span className="label">分类:</span>
-              <span className="value">{product.category}</span>
-            </div>
-            <div className="meta-item">
-              <span className="label">地点:</span>
-              <span className="value">{product.location}</span>
-            </div>
-            <div className="meta-item">
-              <span className="label">状态:</span>
-              <span className={`value status-${product.status}`}>
-                {product.status === '在售' ? '在售' : '已售出'}
-              </span>
-            </div>
-            <div className="meta-item">
-              <span className="label">发布时间:</span>
-              <span className="value">
-                {new Date(product.createdAt).toLocaleString()}
-              </span>
+
+          <div className="product-info-top">
+            <h1 className="product-name">{product.name}</h1>
+            <p className="product-price">¥{product.price}</p>
+            <div className="product-meta">
+              <div className="meta-item">
+                <span className="label">分类:</span>
+                <span className="value">{product.category}</span>
+              </div>
+              <div className="meta-item">
+                <span className="label">地点:</span>
+                <span className="value">{product.location}</span>
+              </div>
+              <div className="meta-item">
+                <span className="label">状态:</span>
+                <span className={`value status-${product.status}`}>
+                  {product.status === '在售' ? '在售' : '已售出'}
+                </span>
+              </div>
+              <div className="meta-item">
+                <span className="label">发布时间:</span>
+                <span className="value">
+                  {new Date(product.createdAt).toLocaleString()}
+                </span>
+              </div>
             </div>
           </div>
-          
+        </div>
+
+        <div className="product-info-bottom">
           <div className="seller-info">
             <h3>卖家信息</h3>
             <div className="seller-details">
@@ -244,10 +214,10 @@ const ProductDetail = () => {
               </span>
               {product.seller && user && user._id !== product.seller._id && (
                 <button 
-                  className={`follow-button ${isFollowing ? 'following' : ''}`}
-                  onClick={handleFollow}
+                  className="contact-button"
+                  onClick={handleContactSeller}
                 >
-                  {isFollowing ? '已关注' : '关注'}
+                  联系商家
                 </button>
               )}
             </div>

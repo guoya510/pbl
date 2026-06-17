@@ -12,12 +12,61 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [imageLinks, setImageLinks] = useState('');
 
   const handleChange = (e) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
     });
+  };
+
+  const handleFileUpload = async (e) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      for (let i = 0; i < files.length; i++) {
+        formData.append('images', files[i]);
+      }
+
+      const response = await fetch('http://localhost:5000/api/upload', {
+        method: 'POST',
+        body: formData
+      });
+
+      const result = await response.json();
+      if (result.images && result.images.length > 0) {
+        setFormData(prev => ({
+          ...prev,
+          images: [...prev.images, ...result.images]
+        }));
+      }
+    } catch (err) {
+      setError('图片上传失败，请重试');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleRemoveImage = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleAddLinks = () => {
+    if (!imageLinks.trim()) return;
+    const links = imageLinks.split(',').map(link => link.trim()).filter(link => link);
+    setFormData(prev => ({
+      ...prev,
+      images: [...prev.images, ...links]
+    }));
+    setImageLinks('');
   };
 
   const handleSubmit = async (e) => {
@@ -28,10 +77,8 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
     try {
       let response;
       if (product) {
-        // 更新商品
         response = await productApi.updateProduct(product._id, formData);
       } else {
-        // 发布新商品
         response = await productApi.createProduct(formData);
       }
       if (onSubmit) {
@@ -113,17 +160,61 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
             placeholder="例如：东区宿舍"
           />
         </div>
+        
         <div className="form-group">
-          <label htmlFor="images">图片链接（多个链接用逗号分隔）</label>
-          <input
-            type="text"
-            id="images"
-            name="images"
-            value={Array.isArray(formData.images) ? formData.images.join(',') : formData.images}
-            onChange={(e) => setFormData({ ...formData, images: e.target.value.split(',') })}
-            placeholder="例如：https://example.com/image1.jpg,https://example.com/image2.jpg"
-          />
+          <label>上传图片（支持多选，最多5张）</label>
+          <div className="upload-section">
+            <label className="upload-button">
+              <input
+                type="file"
+                multiple
+                accept="image/*"
+                onChange={handleFileUpload}
+                disabled={uploading}
+              />
+              <span>{uploading ? '上传中...' : '点击选择图片'}</span>
+            </label>
+          </div>
         </div>
+
+        <div className="form-group">
+          <label>或输入图片链接（多个链接用逗号分隔）</label>
+          <div className="link-input-group">
+            <input
+              type="text"
+              value={imageLinks}
+              onChange={(e) => setImageLinks(e.target.value)}
+              placeholder="例如：https://example.com/image1.jpg"
+            />
+            <button type="button" className="add-link-btn" onClick={handleAddLinks}>
+              添加链接
+            </button>
+          </div>
+        </div>
+
+        {formData.images && formData.images.length > 0 && (
+          <div className="form-group">
+            <label>已添加的图片</label>
+            <div className="image-preview-grid">
+              {formData.images.map((image, index) => (
+                <div key={index} className="image-preview-item">
+                  <img 
+                    src={image.startsWith('http') ? image : `http://localhost:5000${image}`} 
+                    alt={`图片${index + 1}`}
+                  />
+                  <button 
+                    type="button" 
+                    className="remove-image-btn"
+                    onClick={() => handleRemoveImage(index)}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="form-actions">
           <button type="button" className="cancel-button" onClick={onCancel} disabled={loading}>
             取消

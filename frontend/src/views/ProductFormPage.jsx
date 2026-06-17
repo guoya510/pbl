@@ -1,32 +1,55 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import ProductForm from '../components/ProductForm';
+import { productApi } from '../utils/api';
 
 const ProductFormPage = ({ onProductCreated, onProductUpdated }) => {
   const [showForm, setShowForm] = useState(true);
+  const [product, setProduct] = useState(null);
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
-  const handleSubmit = (product) => {
-    if (product._id) {
-      // 更新商品
+  useEffect(() => {
+    const productId = searchParams.get('id');
+    if (productId) {
+      fetchProduct(productId);
+    }
+  }, [searchParams]);
+
+  const fetchProduct = async (id) => {
+    try {
+      setLoading(true);
+      const data = await productApi.getProduct(id);
+      setProduct(data);
+    } catch (err) {
+      console.error('获取商品信息失败:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = (productData) => {
+    if (product) {
       if (onProductUpdated) {
-        onProductUpdated(product);
+        onProductUpdated(productData);
       }
     } else {
-      // 发布新商品
       if (onProductCreated) {
-        onProductCreated(product);
+        onProductCreated(productData);
       }
     }
-    // 发布成功后跳转到首页
     navigate('/');
   };
 
   const handleCancel = () => {
     setShowForm(false);
-    // 导航回上一页
     window.history.back();
   };
+
+  if (loading) {
+    return <div className="loading">加载中...</div>;
+  }
 
   if (!showForm) {
     return <div>操作已取消</div>;
@@ -35,6 +58,7 @@ const ProductFormPage = ({ onProductCreated, onProductUpdated }) => {
   return (
     <div className="product-form-page">
       <ProductForm 
+        product={product} 
         onSubmit={handleSubmit} 
         onCancel={handleCancel} 
       />

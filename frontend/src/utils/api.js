@@ -139,6 +139,8 @@ export const messageApi = {
   getChat: (userId) => api.get(`/messages/chat/${userId}`),
   // 标记消息为已读
   markAsRead: (id) => api.put(`/messages/${id}/read`),
+  // 标记所有消息为已读
+  markAllAsRead: () => api.put('/messages/read/all'),
   // 删除消息
   deleteMessage: (id) => api.delete(`/messages/${id}`)
 };

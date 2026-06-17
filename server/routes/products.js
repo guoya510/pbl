@@ -35,7 +35,8 @@ router.get('/', async (req, res) => {
   try {
     const { keyword, category, campus, building, minPrice, maxPrice, sort = 'createdAt', page = 1, limit = 20 } = req.query;
     
-    let query = { status: '在售' };
+    console.log('搜索参数:', { keyword, category, campus, building, minPrice, maxPrice });
+    
     let andConditions = [{ status: '在售' }];
     
     if (keyword) {
@@ -52,7 +53,15 @@ router.get('/', async (req, res) => {
     }
     
     if (campus) {
-      andConditions.push({ campus: campus });
+      const campusPattern = new RegExp(campus, 'i');
+      andConditions.push({
+        $or: [
+          { campus: campus },
+          { campus: { $regex: campusPattern } },
+          { location: { $regex: campusPattern } },
+          { building: { $regex: campusPattern } }
+        ]
+      });
     }
     
     if (building) {
