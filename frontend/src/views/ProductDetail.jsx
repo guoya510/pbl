@@ -137,7 +137,7 @@ const ProductDetail = () => {
                     &#8249;
                   </button>
                   <img 
-                    src={product.images[currentImageIndex]} 
+                    src={product.images[currentImageIndex].startsWith('http') ? product.images[currentImageIndex] : `http://localhost:5000${product.images[currentImageIndex]}`} 
                     alt={`${product.name} ${currentImageIndex + 1}`}
                     className="main-image"
                     onClick={() => setShowLightbox(true)}
@@ -167,7 +167,7 @@ const ProductDetail = () => {
                     className={`thumbnail-item ${index === currentImageIndex ? 'active' : ''}`}
                     onClick={() => setCurrentImageIndex(index)}
                   >
-                    <img src={image} alt={`${product.name} ${index + 1}`} />
+                    <img src={image.startsWith('http') ? image : `http://localhost:5000${image}`} alt={`${product.name} ${index + 1}`} />
                   </div>
                 ))}
               </div>

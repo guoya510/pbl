@@ -2,9 +2,7 @@ const mongoose = require('mongoose');
 const Product = require('../models/Product');
 const User = require('../models/User');
 
-const mongoURI = 'mongodb://localhost:27017/campus-second-hand';
-
-mongoose.connect(mongoURI, {
+mongoose.connect('mongodb://localhost:27017/campus_sell', {
   useNewUrlParser: true,
   useUnifiedTopology: true
 })
@@ -406,19 +404,11 @@ const testProducts = [
 
 async function addProducts() {
   try {
-    await Product.deleteMany({});
-    const users = await User.find({});
-    if (users.length === 0) {
-      console.log('No users found');
-      process.exit(1);
-    }
-
+    const users = await User.find({}, {_id: 1, username: 1});
     console.log(`Found ${users.length} users:`);
-    users.forEach((user, index) => {
-      console.log(`  ${index + 1}. ${user.username}`);
-    });
+    users.forEach(u => console.log(`  - ${u.username} (${u._id})`));
 
-    const productsWithSeller = testProducts.map((product, index) => {
+    const productsWithUsers = testProducts.map((product, index) => {
       const randomUser = users[index % users.length];
       return {
         ...product,
@@ -427,24 +417,18 @@ async function addProducts() {
       };
     });
 
-    const result = await Product.insertMany(productsWithSeller);
-    console.log(`\nAdded ${result.length} products distributed among users:`);
+    await Product.deleteMany({});
+    await Product.insertMany(productsWithUsers);
+    console.log(`Added ${productsWithUsers.length} products distributed among users`);
     
-    const userProductCount = {};
-    productsWithSeller.forEach(product => {
-      const userName = users.find(u => u._id.toString() === product.seller.toString())?.username;
-      userProductCount[userName] = (userProductCount[userName] || 0) + 1;
+    productsWithUsers.forEach(p => {
+      const user = users.find(u => u._id.toString() === p.seller.toString());
+      console.log(`  ${p.name} - ${user?.username}`);
     });
-    
-    Object.entries(userProductCount).forEach(([user, count]) => {
-      console.log(`  ${user}: ${count} products`);
-    });
-    
-    await mongoose.disconnect();
+
     process.exit(0);
   } catch (error) {
-    console.error('Error adding products:', error);
-    await mongoose.disconnect();
+    console.error('Error:', error);
     process.exit(1);
   }
 }

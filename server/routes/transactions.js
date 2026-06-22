@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Transaction = require('../models/Transaction');
 const Product = require('../models/Product');
+const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 
 const authenticateToken = (req, res, next) => {
@@ -215,6 +216,88 @@ router.put('/:id/confirm-receipt', authenticateToken, async (req, res) => {
     
     res.json({ message: '收货确认成功，交易已完成', transaction });
   } catch (error) {
+    res.status(500).json({ message: '服务器内部错误' });
+  }
+});
+
+router.put('/:id/cancel', authenticateToken, async (req, res) => {
+  try {
+    const transaction = await Transaction.findById(req.params.id).populate('product');
+    
+    if (!transaction) {
+      return res.status(404).json({ message: '交易不存在' });
+    }
+    
+    const isBuyer = transaction.buyer.toString() === req.userId;
+    const isSeller = transaction.seller.toString() === req.userId;
+    
+    if (!isBuyer && !isSeller) {
+      return res.status(403).json({ message: '无权操作此交易' });
+    }
+    
+    const status = transaction.status;
+    const statusHex = Buffer.from(status).toString('hex');
+    
+    console.log('Cancel transaction:', req.params.id);
+    console.log('Current status:', status, 'Hex:', statusHex);
+    console.log('Is buyer:', isBuyer, 'Is seller:', isSeller);
+    
+    const pendingHex = 'e5be85e4bb98e6acbe';
+    const completedHexes = ['e5b7b2e5ae8ce68890', 'e5b7b2e58f96e6b688'];
+    
+    console.log('Pending hex match:', statusHex === pendingHex);
+    console.log('Completed hex match:', completedHexes.includes(statusHex));
+    
+    if (completedHexes.includes(statusHex)) {
+      return res.status(400).json({ message: '当前交易状态不允许取消' });
+    }
+    
+    if (statusHex !== pendingHex && status !== '待付款') {
+      console.log('Unknown status, allowing cancel');
+    }
+    
+    let cancelBy = isBuyer ? 'buyer' : 'seller';
+    let creditScoreUser = isBuyer ? transaction.buyer : transaction.seller;
+    
+    console.log('Cancel by:', cancelBy);
+    console.log('Credit score user ID:', creditScoreUser);
+    
+    transaction.status = '已取消';
+    transaction.cancelBy = cancelBy;
+    await transaction.save();
+    
+    console.log('Credit score user:', creditScoreUser, 'Type:', typeof creditScoreUser);
+    
+    const creditScoreUserId = creditScoreUser.toString();
+    console.log('Credit score user ID (string):', creditScoreUserId);
+    
+    try {
+      const user = await User.findById(creditScoreUserId);
+      console.log('Found user:', user ? user.username : null);
+      
+      if (user) {
+        user.creditScore = Math.max(0, user.creditScore - 10);
+        await user.save();
+        console.log('User credit score updated:', user.username, user.creditScore);
+      } else {
+        console.log('User not found, skipping credit score update');
+      }
+    } catch (userError) {
+      console.error('Error updating credit score:', userError);
+    }
+    
+    if (isSeller && transaction.product) {
+      transaction.product.status = '在售';
+      await transaction.product.save();
+    }
+    
+    await transaction.populate('product');
+    await transaction.populate('buyer', 'username');
+    await transaction.populate('seller', 'username');
+    
+    res.json({ message: '交易已取消', transaction });
+  } catch (error) {
+    console.error('Cancel transaction error:', error);
     res.status(500).json({ message: '服务器内部错误' });
   }
 });

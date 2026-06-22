@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { productApi, userApi, transactionApi } from '../utils/api';
+import { productApi, userApi, transactionApi, notificationApi } from '../utils/api';
 import { showToast, showConfirm } from '../components/Toast';
 
 const statusConfig = {
@@ -14,11 +14,13 @@ const Profile = ({ user, onUserUpdate }) => {
   const [userInfo, setUserInfo] = useState(user);
   const [myProducts, setMyProducts] = useState([]);
   const [transactions, setTransactions] = useState([]);
+  const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [editing, setEditing] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
   const [activeTab, setActiveTab] = useState('info');
+  const [productFilter, setProductFilter] = useState('all');
   const [editForm, setEditForm] = useState({
     username: '',
     phone: '',
@@ -41,8 +43,15 @@ const Profile = ({ user, onUserUpdate }) => {
       fetchUserData();
       fetchMyProducts();
       fetchTransactions();
+      fetchNotifications();
     }
   }, [user]);
+
+  useEffect(() => {
+    if (activeTab === 'notifications') {
+      markAllNotificationsAsRead();
+    }
+  }, [activeTab]);
 
   const fetchUserData = async () => {
     try {
@@ -152,6 +161,24 @@ const Profile = ({ user, onUserUpdate }) => {
     }
   };
 
+  const fetchNotifications = async () => {
+    try {
+      const data = await notificationApi.getNotifications();
+      setNotifications(data);
+    } catch (err) {
+      console.error('获取通知失败:', err);
+    }
+  };
+
+  const markAllNotificationsAsRead = async () => {
+    try {
+      await notificationApi.markAllAsRead();
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    } catch (err) {
+      console.error('标记通知为已读失败:', err);
+    }
+  };
+
   const handleConfirmPayment = async (transactionId) => {
     const confirmed = await showConfirm('确认付款', '确定要确认付款吗？');
     if (!confirmed) return;
@@ -197,6 +224,23 @@ const Profile = ({ user, onUserUpdate }) => {
     } catch (err) {
       console.error('确认收货失败:', err);
       showToast('确认收货失败，请重试', 'error');
+    }
+  };
+
+  const handleCancelTransaction = async (transactionId) => {
+    const confirmed = await showConfirm('取消交易', '确定要取消此交易吗？取消后您的信用评分将降低10分');
+    if (!confirmed) return;
+    
+    try {
+      const result = await transactionApi.cancelTransaction(transactionId);
+      setTransactions(transactions.map(t => 
+        t._id === transactionId ? result.transaction : t
+      ));
+      showToast('交易已取消，信用评分已降低', 'success');
+      fetchUserData();
+    } catch (err) {
+      console.error('取消交易失败:', err);
+      showToast(err.response?.data?.message || '取消交易失败，请重试', 'error');
     }
   };
 
@@ -292,6 +336,15 @@ const Profile = ({ user, onUserUpdate }) => {
           交易记录
           {transactions.filter(t => t.status === '待付款' || t.status === '待发货' || t.status === '待收货').length > 0 && (
             <span className="badge">{transactions.filter(t => t.status === '待付款' || t.status === '待发货' || t.status === '待收货').length}</span>
+          )}
+        </button>
+        <button 
+          className={`tab-button ${activeTab === 'notifications' ? 'active' : ''}`}
+          onClick={() => setActiveTab('notifications')}
+        >
+          系统通知
+          {notifications.filter(n => !n.read).length > 0 && (
+            <span className="badge">{notifications.filter(n => !n.read).length}</span>
           )}
         </button>
         <button 
@@ -406,45 +459,167 @@ const Profile = ({ user, onUserUpdate }) => {
       {activeTab === 'products' && (
         <div className="products-section">
           <h2>我的商品</h2>
+          
+          <div className="products-tabs">
+            <button 
+              className={`products-tab ${productFilter === 'all' ? 'active' : ''}`}
+              onClick={() => setProductFilter('all')}
+            >
+              全部 ({myProducts.length})
+            </button>
+            <button 
+              className={`products-tab ${productFilter === '在售' ? 'active' : ''}`}
+              onClick={() => setProductFilter('在售')}
+            >
+              在售 ({myProducts.filter(p => p.status === '在售').length})
+            </button>
+            <button 
+              className={`products-tab ${productFilter === '已售出' ? 'active' : ''}`}
+              onClick={() => setProductFilter('已售出')}
+            >
+              已售出 ({myProducts.filter(p => p.status === '已售出').length})
+            </button>
+            <button 
+              className={`products-tab ${productFilter === '已下架' ? 'active' : ''}`}
+              onClick={() => setProductFilter('已下架')}
+            >
+              已下架 ({myProducts.filter(p => p.status === '已下架').length})
+            </button>
+          </div>
+
           {myProducts.length > 0 ? (
-            <div className="products-grid">
-              {myProducts.map((product) => (
-                <a key={product._id} href={`/product/${product._id}`} className="product-card">
-                  <div className="product-images">
-                    {product.images && product.images.length > 0 ? (
-                      <img 
-                        src={product.images[0]} 
-                        alt={product.name}
-                        loading="lazy"
-                        className="product-image"
-                      />
-                    ) : (
-                      <div className="no-image">
-                        <div className="no-image-icon">📷</div>
-                        <span>暂无图片</span>
+            <>
+              {(productFilter === 'all' || productFilter === '在售') && myProducts.filter(p => p.status === '在售').length > 0 && (
+                <div className="products-group">
+                  <h3 className="group-title">
+                    <span className="status-badge status-在售">在售</span>
+                    <span className="count">{myProducts.filter(p => p.status === '在售').length}</span>
+                  </h3>
+                  <div className="products-grid">
+                    {myProducts.filter(p => p.status === '在售').map((product) => (
+                    <a key={product._id} href={`/product/${product._id}`} className="product-card">
+                      <div className="product-images">
+                        {product.images && product.images.length > 0 ? (
+                          <img 
+                            src={product.images[0]} 
+                            alt={product.name}
+                            loading="lazy"
+                            className="product-image"
+                          />
+                        ) : (
+                          <div className="no-image">
+                            <div className="no-image-icon">📷</div>
+                            <span>暂无图片</span>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                  <div className="product-info">
-                    <h3 className="product-name">{product.name}</h3>
-                    <p className="product-price">¥{product.price}</p>
-                    <div className="product-meta">
-                      <span className="product-location">📍 {product.location}</span>
-                      <span className={`product-status status-${product.status}`}>
-                        {product.status === '在售' ? '在售' : '已售出'}
-                      </span>
-                    </div>
-                    {product.status === '在售' && (
-                      <div className="product-actions">
-                        <a href={`/product/form?id=${product._id}`} className="action-button edit">
-                          编辑
-                        </a>
+                      <div className="product-info">
+                        <h3 className="product-name">{product.name}</h3>
+                        <p className="product-price">¥{product.price}</p>
+                        <div className="product-meta">
+                          <span className="product-location">📍 {product.location}</span>
+                          <span className={`product-status status-${product.status}`}>{product.status}</span>
+                        </div>
+                        <div className="product-actions">
+                          <a href={`/product/form?id=${product._id}`} className="action-button edit">编辑</a>
+                        </div>
                       </div>
-                    )}
+                    </a>
+                  ))}
                   </div>
-                </a>
-              ))}
-            </div>
+                </div>
+              )}
+
+              {(productFilter === 'all' || productFilter === '已售出') && myProducts.filter(p => p.status === '已售出').length > 0 && (
+                <div className="products-group">
+                  <h3 className="group-title">
+                    <span className="status-badge status-已售出">已售出</span>
+                    <span className="count">{myProducts.filter(p => p.status === '已售出').length}</span>
+                  </h3>
+                  <div className="products-grid">
+                    {myProducts.filter(p => p.status === '已售出').map((product) => (
+                    <a key={product._id} href={`/product/${product._id}`} className="product-card">
+                      <div className="product-images">
+                        {product.images && product.images.length > 0 ? (
+                          <img 
+                            src={product.images[0]} 
+                            alt={product.name}
+                            loading="lazy"
+                            className="product-image"
+                          />
+                        ) : (
+                          <div className="no-image">
+                            <div className="no-image-icon">📷</div>
+                            <span>暂无图片</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="product-info">
+                        <h3 className="product-name">{product.name}</h3>
+                        <p className="product-price">¥{product.price}</p>
+                        <div className="product-meta">
+                          <span className="product-location">📍 {product.location}</span>
+                          <span className={`product-status status-${product.status}`}>{product.status}</span>
+                        </div>
+                      </div>
+                    </a>
+                  ))}
+                  </div>
+                </div>
+              )}
+
+              {(productFilter === 'all' || productFilter === '已下架') && myProducts.filter(p => p.status === '已下架').length > 0 && (
+                <div className="products-group">
+                  <h3 className="group-title">
+                    <span className="status-badge status-已下架">已下架</span>
+                    <span className="count">{myProducts.filter(p => p.status === '已下架').length}</span>
+                  </h3>
+                  <div className="products-grid">
+                    {myProducts.filter(p => p.status === '已下架').map((product) => (
+                    <a key={product._id} href={`/product/${product._id}`} className="product-card">
+                      <div className="product-images">
+                        {product.images && product.images.length > 0 ? (
+                          <img 
+                            src={product.images[0]} 
+                            alt={product.name}
+                            loading="lazy"
+                            className="product-image"
+                          />
+                        ) : (
+                          <div className="no-image">
+                            <div className="no-image-icon">📷</div>
+                            <span>暂无图片</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="product-info">
+                        <h3 className="product-name">{product.name}</h3>
+                        <p className="product-price">¥{product.price}</p>
+                        <div className="product-meta">
+                          <span className="product-location">📍 {product.location}</span>
+                          <span className={`product-status status-${product.status}`}>{product.status}</span>
+                        </div>
+                        {product.reviewReason && (
+                          <div className="product-reason">
+                            <span className="reason-label">原因：</span>
+                            <span className="reason-text">{product.reviewReason}</span>
+                          </div>
+                        )}
+                      </div>
+                    </a>
+                  ))}
+                  </div>
+                </div>
+              )}
+
+              {((productFilter === '在售' && myProducts.filter(p => p.status === '在售').length === 0) ||
+                (productFilter === '已售出' && myProducts.filter(p => p.status === '已售出').length === 0) ||
+                (productFilter === '已下架' && myProducts.filter(p => p.status === '已下架').length === 0)) && (
+                <div className="empty-state">
+                  <p>暂无{productFilter}的商品</p>
+                </div>
+              )}
+            </>
           ) : (
             <div className="empty-state">
               <div className="empty-icon">📦</div>
@@ -453,6 +628,33 @@ const Profile = ({ user, onUserUpdate }) => {
               <a href="/product/form" className="primary-button">
                 发布商品
               </a>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 交易记录标签页 */}
+      {activeTab === 'notifications' && (
+        <div className="notifications-section">
+          <h2>系统通知</h2>
+          {notifications.length > 0 ? (
+            <div className="notifications-list">
+              {notifications.map((notification) => (
+                <div key={notification._id} className={`notification-item ${notification.read ? 'read' : ''}`}>
+                  <div className="notification-header">
+                    <span className="notification-title">{notification.title}</span>
+                    {!notification.read && <span className="unread-dot"></span>}
+                  </div>
+                  <p className="notification-content">{notification.content}</p>
+                  <span className="notification-time">{new Date(notification.createdAt).toLocaleString()}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="empty-state">
+              <div className="empty-icon">🔔</div>
+              <h3>暂无系统通知</h3>
+              <p>您还没有收到任何系统通知</p>
             </div>
           )}
         </div>
@@ -508,6 +710,11 @@ const Profile = ({ user, onUserUpdate }) => {
                       <div className="card-right">
                         <div className="card-price">¥{transaction.price}</div>
                         <div className="card-actions">
+                          {(isBuyer || isSeller) && transaction.status !== '已完成' && transaction.status !== '已取消' && (
+                            <button className="btn-cancel" onClick={() => handleCancelTransaction(transaction._id)}>
+                              取消交易
+                            </button>
+                          )}
                           {isBuyer && transaction.status === '待付款' && (
                             <button className="btn-pay" onClick={() => handleConfirmPayment(transaction._id)}>
                               确认付款
@@ -525,6 +732,9 @@ const Profile = ({ user, onUserUpdate }) => {
                           )}
                           {transaction.status === '已完成' && (
                             <span className="btn-done">交易已完成</span>
+                          )}
+                          {transaction.status === '已取消' && (
+                            <span className="btn-done">交易已取消</span>
                           )}
                         </div>
                       </div>

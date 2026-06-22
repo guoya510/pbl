@@ -64,8 +64,7 @@ app.use('/api/products', require('./routes/products'));
 app.use('/api/transactions', require('./routes/transactions'));
 app.use('/api/messages', require('./routes/messages'));
 app.use('/api/favorites', require('./routes/favorites'));
-
-
+app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/stats', require('./routes/stats'));
 
 // 图片上传路由

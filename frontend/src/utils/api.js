@@ -126,7 +126,9 @@ export const transactionApi = {
   // 确认发货
   confirmShipping: (id) => api.put(`/transactions/${id}/confirm-shipping`),
   // 确认收货
-  confirmReceipt: (id) => api.put(`/transactions/${id}/confirm-receipt`)
+  confirmReceipt: (id) => api.put(`/transactions/${id}/confirm-receipt`),
+  // 取消交易
+  cancelTransaction: (id) => api.put(`/transactions/${id}/cancel`)
 };
 
 // 消息相关API

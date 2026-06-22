@@ -42,6 +42,7 @@ function AdminDashboard() {
           <button onClick={() => navigate('/admin/dashboard')} className="active">数据统计</button>
           <button onClick={() => navigate('/admin/review')}>商品审核</button>
           <button onClick={() => navigate('/admin/products')}>商品管理</button>
+          <button onClick={() => navigate('/admin/users')}>用户管理</button>
         </div>
       </div>
 
@@ -121,24 +122,6 @@ function AdminDashboard() {
               </div>
             ))}
           </div>
-        </div>
-      </div>
-
-      <div className="quick-actions">
-        <h3>快捷操作</h3>
-        <div className="action-buttons">
-          <button onClick={() => navigate('/admin/review')} className="action-btn">
-            <span>📋</span>
-            <span>待审核商品 ({stats.products.pendingReview})</span>
-          </button>
-          <button onClick={() => navigate('/admin/products')} className="action-btn">
-            <span>📦</span>
-            <span>商品管理</span>
-          </button>
-          <button onClick={() => navigate('/admin/users')} className="action-btn">
-            <span>👤</span>
-            <span>用户管理</span>
-          </button>
         </div>
       </div>
     </div>

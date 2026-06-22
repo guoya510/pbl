@@ -71,20 +71,22 @@ const UserSchema = new mongoose.Schema({
 });
 
 UserSchema.methods.calculateCreditLevel = function() {
-  if (this.creditScore >= 150) return 'S';
-  if (this.creditScore >= 120) return 'A';
-  if (this.creditScore >= 100) return 'B';
-  if (this.creditScore >= 80) return 'C';
+  if (this.creditScore >= 90) return 'S';
+  if (this.creditScore >= 80) return 'A';
+  if (this.creditScore >= 60) return 'B';
+  if (this.creditScore >= 40) return 'C';
   return 'D';
 };
 
 UserSchema.methods.updateCreditScore = function(points) {
-  this.creditScore = Math.max(0, Math.min(200, this.creditScore + points));
+  this.creditScore = Math.max(0, Math.min(100, this.creditScore + points));
   this.creditLevel = this.calculateCreditLevel();
 };
 
 UserSchema.pre('save', function(next) {
   this.updatedAt = Date.now();
+  this.creditScore = Math.max(0, Math.min(100, this.creditScore));
+  this.creditLevel = this.calculateCreditLevel();
   next();
 });
 

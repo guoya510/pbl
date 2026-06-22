@@ -12,9 +12,15 @@ const Home = () => {
     building: '',
     minPrice: '',
     maxPrice: '',
-    sort: 'createdAt'
+    sort: '-createdAt'
   });
   const [showFilters, setShowFilters] = useState(false);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 12,
+    total: 0,
+    totalPages: 0
+  });
 
   const campuses = [
     { value: '', label: '全部' },
@@ -58,14 +64,24 @@ const Home = () => {
     fetchProducts();
   }, []);
 
-  const fetchProducts = async () => {
+  const fetchProducts = async (page = 1) => {
     try {
       setLoading(true);
-      const params = { ...searchParams };
+      const params = { 
+        ...searchParams,
+        page,
+        limit: pagination.limit
+      };
       if (!params.minPrice) delete params.minPrice;
       if (!params.maxPrice) delete params.maxPrice;
       const data = await productApi.getProducts(params);
       setProducts(data.products);
+      setPagination({
+        ...pagination,
+        page: data.page,
+        total: data.total,
+        totalPages: data.totalPages
+      });
     } catch (err) {
       setError('获取商品列表失败');
     } finally {
@@ -106,7 +122,7 @@ const Home = () => {
       building: '',
       minPrice: '',
       maxPrice: '',
-      sort: 'createdAt'
+      sort: '-createdAt'
     });
   };
 
@@ -257,7 +273,7 @@ const Home = () => {
       </div>
 
       <div className="results-info">
-        <span className="results-count">共找到 <strong>{products.length}</strong> 件商品</span>
+        <span className="results-count">共找到 <strong>{pagination.total}</strong> 件商品</span>
         {searchParams.keyword && (
           <span className="search-keyword">搜索关键词: "{searchParams.keyword}"</span>
         )}
@@ -270,7 +286,7 @@ const Home = () => {
               <div className="product-images">
                 {product.images && product.images.length > 0 ? (
                   <img 
-                    src={product.images[0]} 
+                    src={product.images[0].startsWith('http') ? product.images[0] : `http://localhost:5000${product.images[0]}`} 
                     alt={product.name}
                     loading="lazy"
                     className="product-image"
@@ -313,6 +329,28 @@ const Home = () => {
           </div>
         )}
       </div>
+
+      {pagination.totalPages > 1 && (
+        <div className="pagination">
+          <button 
+            onClick={() => pagination.page > 1 && fetchProducts(pagination.page - 1)}
+            disabled={pagination.page <= 1}
+            className="pagination-btn"
+          >
+            上一页
+          </button>
+          <span className="pagination-info">
+            第 {pagination.page} / {pagination.totalPages} 页
+          </span>
+          <button 
+            onClick={() => pagination.page < pagination.totalPages && fetchProducts(pagination.page + 1)}
+            disabled={pagination.page >= pagination.totalPages}
+            className="pagination-btn"
+          >
+            下一页
+          </button>
+        </div>
+      )}
     </div>
   );
 };

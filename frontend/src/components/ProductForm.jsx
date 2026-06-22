@@ -26,16 +26,28 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
+    const maxImages = 5;
+    const remainingSlots = maxImages - formData.images.length;
+    if (remainingSlots <= 0) {
+      setError('最多只能上传5张图片');
+      return;
+    }
+
+    const filesToUpload = Array.from(files).slice(0, remainingSlots);
+    if (files.length > remainingSlots) {
+      setError(`已选择${files.length}张图片，只上传前${remainingSlots}张`);
+    }
+
     setUploading(true);
     try {
-      const formData = new FormData();
-      for (let i = 0; i < files.length; i++) {
-        formData.append('images', files[i]);
+      const uploadFormData = new FormData();
+      for (let i = 0; i < filesToUpload.length; i++) {
+        uploadFormData.append('images', filesToUpload[i]);
       }
 
       const response = await fetch('http://localhost:5000/api/upload', {
         method: 'POST',
-        body: formData
+        body: uploadFormData
       });
 
       const result = await response.json();
@@ -61,10 +73,24 @@ const ProductForm = ({ product, onSubmit, onCancel }) => {
 
   const handleAddLinks = () => {
     if (!imageLinks.trim()) return;
+    
+    const maxImages = 5;
     const links = imageLinks.split(',').map(link => link.trim()).filter(link => link);
+    const remainingSlots = maxImages - formData.images.length;
+    
+    if (remainingSlots <= 0) {
+      setError('最多只能添加5张图片');
+      return;
+    }
+    
+    const linksToAdd = links.slice(0, remainingSlots);
+    if (links.length > remainingSlots) {
+      setError(`已输入${links.length}个链接，只添加前${remainingSlots}个`);
+    }
+    
     setFormData(prev => ({
       ...prev,
-      images: [...prev.images, ...links]
+      images: [...prev.images, ...linksToAdd]
     }));
     setImageLinks('');
   };

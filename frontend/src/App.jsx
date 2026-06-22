@@ -104,6 +104,10 @@ function App() {
               path="/favorites" 
               element={user ? <Favorites /> : <Navigate to="/auth" />} 
             />
+            <Route 
+              path="/favorites-test" 
+              element={<Favorites />} 
+            />
             
             <Route 
               path="/chat" 

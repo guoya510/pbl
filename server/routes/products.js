@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const Product = require('../models/Product');
 const User = require('../models/User');
+const Notification = require('../models/Notification');
+const Favorite = require('../models/Favorite');
 const jwt = require('jsonwebtoken');
 
 const authenticateToken = (req, res, next) => {
@@ -33,7 +35,7 @@ const authenticateAdmin = async (req, res, next) => {
 
 router.get('/', async (req, res) => {
   try {
-    const { keyword, category, campus, building, minPrice, maxPrice, sort = 'createdAt', page = 1, limit = 20 } = req.query;
+    const { keyword, category, campus, building, minPrice, maxPrice, sort = '-createdAt', page = 1, limit = 12 } = req.query;
     
     console.log('搜索参数:', { keyword, category, campus, building, minPrice, maxPrice });
     
@@ -183,7 +185,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
 
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id);
+    const product = await Product.findById(req.params.id).populate('seller', 'username');
     const user = await User.findById(req.userId);
     
     if (!product) {
@@ -194,8 +196,19 @@ router.delete('/:id', authenticateToken, async (req, res) => {
       return res.status(403).json({ message: '无权删除此商品' });
     }
     
+    if (user.role === 'admin' && product.seller._id.toString() !== req.userId) {
+      await Notification.create({
+        userId: product.seller._id,
+        type: 'system',
+        title: '商品删除通知',
+        content: `您的商品「${product.name}」已被管理员删除`,
+        relatedId: req.params.id
+      });
+    }
+    
     // 使用findByIdAndDelete替代已废弃的remove()方法
     await Product.findByIdAndDelete(req.params.id);
+    
     res.json({ message: '商品已删除' });
   } catch (error) {
     console.error('删除商品失败:', error);
@@ -300,7 +313,13 @@ router.put('/admin/review/:id', authenticateToken, authenticateAdmin, async (req
       return res.status(400).json({ message: '无效的审核状态' });
     }
     
-    const product = await Product.findByIdAndUpdate(
+    const product = await Product.findById(req.params.id).populate('seller', 'username');
+    
+    if (!product) {
+      return res.status(404).json({ message: '商品不存在' });
+    }
+    
+    await Product.findByIdAndUpdate(
       req.params.id,
       { 
         reviewStatus,
@@ -308,10 +327,16 @@ router.put('/admin/review/:id', authenticateToken, authenticateAdmin, async (req
         status: reviewStatus === '已通过' ? '在售' : '已下架'
       },
       { new: true }
-    ).populate('seller', 'username');
+    );
     
-    if (!product) {
-      return res.status(404).json({ message: '商品不存在' });
+    if (reviewStatus === '已拒绝') {
+      await Notification.create({
+        userId: product.seller._id,
+        type: 'system',
+        title: '商品审核未通过',
+        content: `您的商品「${product.name}」审核未通过，原因：${reviewReason || '未填写原因'}`,
+        relatedId: req.params.id
+      });
     }
     
     res.json(product);
@@ -324,7 +349,13 @@ router.put('/admin/offline/:id', authenticateToken, authenticateAdmin, async (re
   try {
     const { reason } = req.body;
     
-    const product = await Product.findByIdAndUpdate(
+    const product = await Product.findById(req.params.id).populate('seller', 'username');
+    
+    if (!product) {
+      return res.status(404).json({ message: '商品不存在' });
+    }
+    
+    await Product.findByIdAndUpdate(
       req.params.id,
       { 
         status: '已下架',
@@ -332,11 +363,15 @@ router.put('/admin/offline/:id', authenticateToken, authenticateAdmin, async (re
         reviewReason: reason || '违规商品'
       },
       { new: true }
-    ).populate('seller', 'username');
+    );
     
-    if (!product) {
-      return res.status(404).json({ message: '商品不存在' });
-    }
+    await Notification.create({
+      userId: product.seller._id,
+      type: 'system',
+      title: '商品下架通知',
+      content: `您的商品「${product.name}」已被管理员下架，原因：${reason || '违规商品'}`,
+      relatedId: req.params.id
+    });
     
     res.json(product);
   } catch (error) {
@@ -352,6 +387,8 @@ router.put('/admin/batch/offline', authenticateToken, authenticateAdmin, async (
       return res.status(400).json({ message: '请选择商品' });
     }
     
+    const products = await Product.find({ _id: { $in: ids } }).populate('seller', 'username');
+    
     await Product.updateMany(
       { _id: { $in: ids } },
       { 
@@ -360,6 +397,16 @@ router.put('/admin/batch/offline', authenticateToken, authenticateAdmin, async (
         reviewReason: reason || '批量下架'
       }
     );
+    
+    for (const product of products) {
+      await Notification.create({
+        userId: product.seller._id,
+        type: 'system',
+        title: '商品下架通知',
+        content: `您的商品「${product.name}」已被管理员下架，原因：${reason || '批量下架'}`,
+        relatedId: product._id
+      });
+    }
     
     res.json({ message: `成功下架 ${ids.length} 件商品` });
   } catch (error) {
@@ -396,6 +443,18 @@ router.delete('/admin/batch', authenticateToken, authenticateAdmin, async (req, 
     
     if (!ids || !Array.isArray(ids)) {
       return res.status(400).json({ message: '请选择商品' });
+    }
+    
+    const products = await Product.find({ _id: { $in: ids } }).populate('seller', 'username');
+    
+    for (const product of products) {
+      await Notification.create({
+        userId: product.seller._id,
+        type: 'system',
+        title: '商品删除通知',
+        content: `您的商品「${product.name}」已被管理员删除`,
+        relatedId: product._id
+      });
     }
     
     await Product.deleteMany({ _id: { $in: ids } });

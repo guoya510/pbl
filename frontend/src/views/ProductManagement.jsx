@@ -415,13 +415,15 @@ function ProductManagement() {
                         🚫
                       </button>
                     )}
-                    <button 
-                      onClick={() => handleDelete(product._id)}
-                      className="action-btn delete"
-                      title="删除商品"
-                    >
-                      🗑️
-                    </button>
+                    {product.status === '已下架' && (
+                      <button 
+                        onClick={() => handleDelete(product._id)}
+                        className="action-btn delete"
+                        title="删除商品"
+                      >
+                        🗑️
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>

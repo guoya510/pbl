@@ -303,4 +303,381 @@ describe('Products API', () => {
       expect(deletedProduct).toBeNull();
     });
   });
+
+  describe('Admin Product Management', () => {
+    let adminUser;
+
+    beforeEach(async () => {
+      // 创建管理员用户
+      const hashedPassword = await bcrypt.hash('admin123', 10);
+      adminUser = await User.create({
+        username: 'admin',
+        email: 'admin@example.com',
+        password: hashedPassword,
+        role: 'admin'
+      });
+    });
+
+    describe('GET /api/products/admin/all', () => {
+      it('should return all products for admin', async () => {
+        jwt.verify.mockReturnValue({ id: adminUser._id.toString() });
+
+        await Product.create({
+          name: '管理商品1',
+          description: '描述',
+          price: 100,
+          category: '电子产品',
+          location: '北京',
+          seller: testUser._id,
+          status: '在售'
+        });
+
+        const response = await request(app)
+          .get('/api/products/admin/all')
+          .set('Authorization', 'Bearer admintoken');
+
+        expect(response.status).toBe(200);
+        expect(response.body.products).toBeDefined();
+        expect(Array.isArray(response.body.products)).toBe(true);
+      });
+
+      it('should filter products by status for admin', async () => {
+        jwt.verify.mockReturnValue({ id: adminUser._id.toString() });
+
+        await Product.create({
+          name: '在售商品',
+          description: '描述',
+          price: 100,
+          category: '电子产品',
+          seller: testUser._id,
+          status: '在售'
+        });
+
+        await Product.create({
+          name: '已下架商品',
+          description: '描述',
+          price: 200,
+          category: '电子产品',
+          seller: testUser._id,
+          status: '已下架'
+        });
+
+        const response = await request(app)
+          .get('/api/products/admin/all?status=已下架')
+          .set('Authorization', 'Bearer admintoken');
+
+        expect(response.status).toBe(200);
+        expect(response.body.products).toHaveLength(1);
+        expect(response.body.products[0].status).toBe('已下架');
+      });
+
+      it('should reject non-admin users', async () => {
+        jwt.verify.mockReturnValue({ id: testUser._id.toString() });
+
+        const response = await request(app)
+          .get('/api/products/admin/all')
+          .set('Authorization', 'Bearer usertoken');
+
+        expect(response.status).toBe(403);
+        expect(response.body.message).toBe('管理员权限不足');
+      });
+    });
+
+    describe('GET /api/products/admin/review/pending', () => {
+      it('should return pending review products', async () => {
+        jwt.verify.mockReturnValue({ id: adminUser._id.toString() });
+
+        await Product.create({
+          name: '待审核商品',
+          description: '描述',
+          price: 100,
+          category: '电子产品',
+          seller: testUser._id,
+          reviewStatus: '待审核'
+        });
+
+        const response = await request(app)
+          .get('/api/products/admin/review/pending')
+          .set('Authorization', 'Bearer admintoken');
+
+        expect(response.status).toBe(200);
+        expect(Array.isArray(response.body)).toBe(true);
+      });
+    });
+
+    describe('PUT /api/products/admin/review/:id', () => {
+      it('should approve product', async () => {
+        jwt.verify.mockReturnValue({ id: adminUser._id.toString() });
+
+        const product = await Product.create({
+          name: '待审核商品',
+          description: '描述',
+          price: 100,
+          category: '电子产品',
+          seller: testUser._id,
+          reviewStatus: '待审核',
+          status: '在售'
+        });
+
+        const response = await request(app)
+          .put(`/api/products/admin/review/${product._id}`)
+          .set('Authorization', 'Bearer admintoken')
+          .send({ reviewStatus: '已通过' });
+
+        expect(response.status).toBe(200);
+        expect(response.body.reviewStatus).toBe('已通过');
+        expect(response.body.status).toBe('在售');
+      });
+
+      it('should reject product', async () => {
+        jwt.verify.mockReturnValue({ id: adminUser._id.toString() });
+
+        const product = await Product.create({
+          name: '违规商品',
+          description: '描述',
+          price: 100,
+          category: '电子产品',
+          seller: testUser._id,
+          reviewStatus: '待审核',
+          status: '在售'
+        });
+
+        const response = await request(app)
+          .put(`/api/products/admin/review/${product._id}`)
+          .set('Authorization', 'Bearer admintoken')
+          .send({ 
+            reviewStatus: '已拒绝',
+            reviewReason: '含有违规内容'
+          });
+
+        expect(response.status).toBe(200);
+        expect(response.body.reviewStatus).toBe('已拒绝');
+        expect(response.body.status).toBe('已下架');
+      });
+
+      it('should reject with invalid review status', async () => {
+        jwt.verify.mockReturnValue({ id: adminUser._id.toString() });
+
+        const product = await Product.create({
+          name: '商品',
+          description: '描述',
+          price: 100,
+          category: '电子产品',
+          seller: testUser._id,
+          reviewStatus: '待审核'
+        });
+
+        const response = await request(app)
+          .put(`/api/products/admin/review/${product._id}`)
+          .set('Authorization', 'Bearer admintoken')
+          .send({ reviewStatus: '无效状态' });
+
+        expect(response.status).toBe(400);
+        expect(response.body.message).toBe('无效的审核状态');
+      });
+    });
+
+    describe('PUT /api/products/admin/offline/:id', () => {
+      it('should offline product with reason', async () => {
+        jwt.verify.mockReturnValue({ id: adminUser._id.toString() });
+
+        const product = await Product.create({
+          name: '违规商品',
+          description: '描述',
+          price: 100,
+          category: '电子产品',
+          seller: testUser._id,
+          status: '在售'
+        });
+
+        const response = await request(app)
+          .put(`/api/products/admin/offline/${product._id}`)
+          .set('Authorization', 'Bearer admintoken')
+          .send({ reason: '违反平台规定' });
+
+        expect(response.status).toBe(200);
+        expect(response.body.status).toBe('已下架');
+        expect(response.body.reviewStatus).toBe('已拒绝');
+        expect(response.body.reviewReason).toBe('违反平台规定');
+      });
+    });
+
+    describe('PUT /api/products/admin/batch/offline', () => {
+      it('should batch offline products', async () => {
+        jwt.verify.mockReturnValue({ id: adminUser._id.toString() });
+
+        const product1 = await Product.create({
+          name: '商品1',
+          description: '描述',
+          price: 100,
+          category: '电子产品',
+          seller: testUser._id,
+          status: '在售'
+        });
+
+        const product2 = await Product.create({
+          name: '商品2',
+          description: '描述',
+          price: 200,
+          category: '电子产品',
+          seller: testUser._id,
+          status: '在售'
+        });
+
+        const response = await request(app)
+          .put('/api/products/admin/batch/offline')
+          .set('Authorization', 'Bearer admintoken')
+          .send({ 
+            ids: [product1._id, product2._id],
+            reason: '批量违规'
+          });
+
+        expect(response.status).toBe(200);
+        expect(response.body.message).toContain('成功下架');
+
+        // 验证商品已下架
+        const p1 = await Product.findById(product1._id);
+        const p2 = await Product.findById(product2._id);
+        expect(p1.status).toBe('已下架');
+        expect(p2.status).toBe('已下架');
+      });
+
+      it('should reject without ids', async () => {
+        jwt.verify.mockReturnValue({ id: adminUser._id.toString() });
+
+        const response = await request(app)
+          .put('/api/products/admin/batch/offline')
+          .set('Authorization', 'Bearer admintoken')
+          .send({ reason: '测试' });
+
+        expect(response.status).toBe(400);
+        expect(response.body.message).toBe('请选择商品');
+      });
+    });
+
+    describe('PUT /api/products/admin/batch/approve', () => {
+      it('should batch approve products', async () => {
+        jwt.verify.mockReturnValue({ id: adminUser._id.toString() });
+
+        const product1 = await Product.create({
+          name: '待审核商品1',
+          description: '描述',
+          price: 100,
+          category: '电子产品',
+          seller: testUser._id,
+          reviewStatus: '待审核'
+        });
+
+        const product2 = await Product.create({
+          name: '待审核商品2',
+          description: '描述',
+          price: 200,
+          category: '电子产品',
+          seller: testUser._id,
+          reviewStatus: '待审核'
+        });
+
+        const response = await request(app)
+          .put('/api/products/admin/batch/approve')
+          .set('Authorization', 'Bearer admintoken')
+          .send({ ids: [product1._id, product2._id] });
+
+        expect(response.status).toBe(200);
+        expect(response.body.message).toContain('成功审核通过');
+
+        // 验证商品已通过审核
+        const p1 = await Product.findById(product1._id);
+        const p2 = await Product.findById(product2._id);
+        expect(p1.reviewStatus).toBe('已通过');
+        expect(p1.status).toBe('在售');
+        expect(p2.reviewStatus).toBe('已通过');
+        expect(p2.status).toBe('在售');
+      });
+    });
+
+    describe('DELETE /api/products/admin/batch', () => {
+      it('should batch delete products', async () => {
+        jwt.verify.mockReturnValue({ id: adminUser._id.toString() });
+
+        const product1 = await Product.create({
+          name: '删除商品1',
+          description: '描述',
+          price: 100,
+          category: '电子产品',
+          seller: testUser._id,
+          status: '在售'
+        });
+
+        const product2 = await Product.create({
+          name: '删除商品2',
+          description: '描述',
+          price: 200,
+          category: '电子产品',
+          seller: testUser._id,
+          status: '在售'
+        });
+
+        const response = await request(app)
+          .delete('/api/products/admin/batch')
+          .set('Authorization', 'Bearer admintoken')
+          .send({ ids: [product1._id, product2._id] });
+
+        expect(response.status).toBe(200);
+        expect(response.body.message).toContain('成功删除');
+
+        // 验证商品已删除
+        const p1 = await Product.findById(product1._id);
+        const p2 = await Product.findById(product2._id);
+        expect(p1).toBeNull();
+        expect(p2).toBeNull();
+      });
+    });
+
+    describe('GET /api/products/admin/stats', () => {
+      it('should return product statistics', async () => {
+        jwt.verify.mockReturnValue({ id: adminUser._id.toString() });
+
+        await Product.create({
+          name: '在售商品',
+          description: '描述',
+          price: 100,
+          category: '电子产品',
+          seller: testUser._id,
+          status: '在售'
+        });
+
+        await Product.create({
+          name: '已售出商品',
+          description: '描述',
+          price: 200,
+          category: '电子产品',
+          seller: testUser._id,
+          status: '已售出'
+        });
+
+        await Product.create({
+          name: '已下架商品',
+          description: '描述',
+          price: 300,
+          category: '电子产品',
+          seller: testUser._id,
+          status: '已下架'
+        });
+
+        const response = await request(app)
+          .get('/api/products/admin/stats')
+          .set('Authorization', 'Bearer admintoken');
+
+        expect(response.status).toBe(200);
+        expect(response.body).toHaveProperty('total');
+        expect(response.body).toHaveProperty('active');
+        expect(response.body).toHaveProperty('sold');
+        expect(response.body).toHaveProperty('offline');
+        expect(response.body.total).toBe(3);
+        expect(response.body.active).toBe(1);
+        expect(response.body.sold).toBe(1);
+        expect(response.body.offline).toBe(1);
+      });
+    });
+  });
 });
